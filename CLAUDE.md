@@ -144,6 +144,7 @@ and code node usage. They activate automatically when relevant.
 ### NocoDB API (via wrapper script)
 
 ```bash
+# Data operations (v3 API)
 bash .claude/scripts/noco.sh list-bases
 bash .claude/scripts/noco.sh list-tables
 bash .claude/scripts/noco.sh list-records <tableId> [where] [limit] [offset]
@@ -151,6 +152,11 @@ bash .claude/scripts/noco.sh get-record <tableId> <recordId>
 bash .claude/scripts/noco.sh create-record <tableId> '<json>'
 bash .claude/scripts/noco.sh update-record <tableId> <recordId> '<json>'
 bash .claude/scripts/noco.sh delete-record <tableId> <recordId>
+
+# Schema operations (v2 API) — tables & columns
+bash .claude/scripts/noco.sh create-table '<{"title":"MyTable"}'
+bash .claude/scripts/noco.sh get-table <tableId>
+bash .claude/scripts/noco.sh create-column <tableId> '<{"column_name":"Name","uidt":"SingleLineText"}'
 ```
 
 ### n8n API (via wrapper script)
@@ -189,19 +195,36 @@ All are optional. The template works without them.
 
 ## API Quick References
 
-### NocoDB REST API (v3)
+### NocoDB REST API
 
-**Base URL:** {NOCODB_URL}/api/v3
+**⚠️ CRITICAL: NocoDB uses TWO different API versions:**
+- **v3** for **data** (records): `{NOCODB_URL}/api/v3/{baseId}/{tableId}`
+- **v2** for **schema** (tables, columns): `{NOCODB_URL}/api/v2/meta/...`
+
+Do NOT use v3 for schema operations — it silently ignores column
+definitions on table creation and returns 404 for column endpoints.
+
 **Auth:** Authorization: Bearer {token} or xc-token: {token}
 **Rate limit:** 5 req/sec/user (429 = wait 30s)
 
-**Key endpoints:**
+**Data endpoints (v3)** — `{NOCODB_URL}/api/v3`:
 - GET /meta/bases — list all bases
 - GET /meta/bases/{baseId}/tables — list tables in a base
 - GET /{baseId}/{tableId} — list records (supports where, sort, fields, limit, offset)
 - POST /{baseId}/{tableId} — create record(s)
 - PATCH /{baseId}/{tableId}/{recordId} — update a record
 - DELETE /{baseId}/{tableId}/{recordId} — delete a record
+
+**Schema endpoints (v2)** — `{NOCODB_URL}/api/v2`:
+- POST /meta/bases/{baseId}/tables — create a table (title required, do NOT pass columns)
+- GET /meta/tables/{tableId} — get table metadata and columns
+- POST /meta/tables/{tableId}/columns — create a column
+- PATCH /meta/columns/{columnId} — update a column
+- DELETE /meta/columns/{columnId} — delete a column
+
+**Table creation gotcha:** The v3 POST to create a table silently
+ignores any `columns` array in the request body. Always create
+the table first (v2), then add columns one at a time (v2).
 
 **Filtering:** ?where=(Status,eq,Active)~and(Priority,gte,3)
 **Operators:** eq, neq, gt, gte, lt, lte, like, nlike, is, isnot
