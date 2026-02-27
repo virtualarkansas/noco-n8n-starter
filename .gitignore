@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Environment (NEVER commit secrets)
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+build/
+*.js.map
+
+# n8n-mcp server
+*.pid
+/tmp/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# n8n custom nodes build
+n8n-nodes/dist/
+
+# Temporary skill downloads
+/tmp/n8n-skills/
