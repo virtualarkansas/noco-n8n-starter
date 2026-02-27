@@ -12,9 +12,12 @@ dist/
 build/
 *.js.map
 
-# n8n-mcp server
+# n8n-mcp server (legacy)
 *.pid
 /tmp/
+
+# n8n-mcp database (downloaded each session by install_pkgs.sh)
+data/nodes.db
 
 # OS files
 .DS_Store

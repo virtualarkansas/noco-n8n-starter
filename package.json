@@ -5,8 +5,6 @@
   "private": true,
   "scripts": {
     "setup": "bash .claude/scripts/setup-env.sh",
-    "start-mcp": "bash .claude/scripts/start-mcp.sh",
-    "stop-mcp": "bash .claude/scripts/stop-mcp.sh",
     "validate": "node scripts/validate-env.js",
     "dev:n8n-nodes": "cd n8n-nodes && npm run dev"
   },

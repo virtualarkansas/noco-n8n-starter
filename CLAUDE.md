@@ -30,9 +30,8 @@ This project uses a SessionStart hook (.claude/settings.json) that
 automatically runs scripts/install_pkgs.sh when you open the repo.
 It handles:
 
-- Installing n8n-mcp (node documentation server)
+- Downloading n8n node database (data/nodes.db — all 1,084 nodes via SQLite)
 - Downloading n8n-skills (7 workflow pattern guides → .claude/skills/)
-- Starting the n8n-mcp HTTP server on localhost:3001
 - Making all scripts executable
 
 Check the bootstrap output above for current status. If anything failed,
@@ -68,46 +67,47 @@ bash .claude/scripts/setup-env.sh <NOCODB_URL> <TOKEN> <BASE_ID> <N8N_URL> <KEY>
 
 ## Available Tools
 
-### n8n-mcp Server (localhost:3001)
+### n8n Node Database (data/nodes.db)
 
-A local HTTP server providing searchable access to 1,084 n8n nodes, 2,646
-real-world template configurations, and workflow validation.
+A pre-built SQLite database containing all 1,084 n8n node docs, property
+schemas, operations, and 2,646+ workflow template configurations. Downloaded
+automatically by the SessionStart hook. No server needed — queries run
+directly via sqlite3.
 
-**Start it:** `bash .claude/scripts/start-mcp.sh`
-**Query it:** `bash .claude/scripts/mcp.sh <tool> '<json_args>'`
+**Query it:** `bash .claude/scripts/mcp.sh <command> [args]`
 
-**Key tools for building workflows:**
+**Key commands for building workflows:**
 
 ```bash
 # Search for nodes by keyword
-bash .claude/scripts/mcp.sh search_nodes '{"query":"slack","includeExamples":true}'
+bash .claude/scripts/mcp.sh search webhook
+bash .claude/scripts/mcp.sh search "slack notification"
 
-# Get detailed node info (use BEFORE configuring any node)
-bash .claude/scripts/mcp.sh get_node '{"nodeType":"n8n-nodes-base.webhook","detail":"standard","includeExamples":true}'
+# Get full documentation for a specific node
+bash .claude/scripts/mcp.sh get n8n-nodes-base.webhook
 
-# Validate a node config before using it
-bash .claude/scripts/mcp.sh validate_node '{"nodeType":"n8n-nodes-base.httpRequest","config":{"method":"POST","url":"..."},"mode":"full","profile":"runtime"}'
+# Get node properties/parameter schema (JSON)
+bash .claude/scripts/mcp.sh props n8n-nodes-base.httpRequest
 
-# Search workflow templates (check BEFORE building from scratch — 2,709 available)
-bash .claude/scripts/mcp.sh search_templates '{"query":"webhook notification"}'
-bash .claude/scripts/mcp.sh search_templates '{"searchMode":"by_task","task":"webhook_processing"}'
+# Get node operations
+bash .claude/scripts/mcp.sh ops n8n-nodes-base.httpRequest
 
-# Get a complete template
-bash .claude/scripts/mcp.sh get_template '{"templateId":1234,"mode":"full"}'
+# Search workflow templates
+bash .claude/scripts/mcp.sh templates "webhook notification"
 
-# Validate a complete workflow JSON
-bash .claude/scripts/mcp.sh validate_workflow '{"workflow":<workflow_json>}'
+# View database statistics
+bash .claude/scripts/mcp.sh stats
 
-# Get best practices documentation
-bash .claude/scripts/mcp.sh tools_documentation '{}'
+# Run custom SQL for advanced queries
+bash .claude/scripts/mcp.sh sql "SELECT node_type, display_name FROM nodes WHERE category = 'Action' LIMIT 10"
 ```
 
 **WORKFLOW BUILDING PROCESS:**
-1. ALWAYS search templates first — there are 2,709 available
-2. Use get_node with includeExamples:true for every node you configure
-3. NEVER trust default parameter values — explicitly set ALL parameters
-4. Validate nodes individually, then validate the complete workflow
-5. Use validate_workflow before deploying or exporting
+1. ALWAYS search templates first — there are 2,646+ available
+2. Use `mcp.sh get` and `mcp.sh props` for every node you configure
+3. NEVER guess parameter names — look them up in the properties JSON
+4. Check operations with `mcp.sh ops` before configuring a node
+5. Reference template examples with `mcp.sh templates` for patterns
 
 ### n8n-skills (in .claude/skills/)
 
@@ -242,10 +242,10 @@ async function createRecord(formData) {
 
 n8n workflows are JSON with nodes and connections arrays.
 
-**CRITICAL:** Always use the n8n-mcp server to:
+**CRITICAL:** Always use the n8n node database to:
 - Look up correct node types (e.g., n8n-nodes-base.webhook, not webhook)
 - Get required properties for each node
-- Validate configurations before deployment
+- Check operations and parameter schemas before configuring
 
 ### Common Patterns:
 1. **Dashboard server**: Webhook GET → Respond with HTML
