@@ -86,7 +86,8 @@ bash .claude/scripts/setup-env.sh <NOCODB_URL> <TOKEN> <BASE_ID> <N8N_URL> <KEY>
 **Data flow:**
 - n8n Webhook node receives HTTP GET → serves HTML from frontend/templates/
 - Frontend JavaScript calls n8n webhook endpoints via fetch()
-- n8n workflows read/write NocoDB via HTTP Request node
+- n8n workflows read/write NocoDB via the **built-in NocoDB node** (row CRUD)
+  or HTTP Request node (schema operations only — see "Prefer Built-in Nodes")
 - NocoDB stores all structured data (tables, views, forms)
 
 ---
@@ -130,10 +131,59 @@ bash .claude/scripts/mcp.sh sql "SELECT node_type, display_name FROM nodes WHERE
 
 **WORKFLOW BUILDING PROCESS:**
 1. ALWAYS search templates first — there are 2,646+ available
-2. Use `mcp.sh get` and `mcp.sh props` for every node you configure
-3. NEVER guess parameter names — look them up in the properties JSON
-4. Check operations with `mcp.sh ops` before configuring a node
-5. Reference template examples with `mcp.sh templates` for patterns
+2. **Search for a built-in node** before using HTTP Request (see below)
+3. Use `mcp.sh get` and `mcp.sh props` for every node you configure
+4. NEVER guess parameter names — look them up in the properties JSON
+5. Check operations with `mcp.sh ops` before configuring a node
+6. Reference template examples with `mcp.sh templates` for patterns
+
+### ⚠️ Prefer Built-in Nodes Over HTTP Request
+
+**ALWAYS check for a dedicated n8n node before reaching for HTTP Request.**
+n8n has 1,084+ built-in nodes. Many services have first-class support with
+credential management, pagination, error handling, and simpler configuration.
+
+**How to check:**
+```bash
+# Search for a built-in node by service name
+bash .claude/scripts/mcp.sh search nocodb
+bash .claude/scripts/mcp.sh search openai
+bash .claude/scripts/mcp.sh search slack
+bash .claude/scripts/mcp.sh search "google sheets"
+
+# Check what operations the built-in node supports
+bash .claude/scripts/mcp.sh ops n8n-nodes-base.nocoDb
+```
+
+**Decision rule:**
+1. Search the node database for the service you need
+2. If a built-in node exists, check its operations with `mcp.sh ops`
+3. If the built-in node supports the operation you need → **use it**
+4. Only fall back to HTTP Request when:
+   - No built-in node exists for the service
+   - The built-in node lacks the specific operation you need
+   - You need a raw/custom API call the node doesn't expose
+
+**Key built-in nodes for this project:**
+
+| Service | Built-in node | Use HTTP Request only for... |
+|---------|---------------|------------------------------|
+| NocoDB | `n8n-nodes-base.nocoDb` (CRUD: create, get, getAll, update, delete rows) | Schema operations (create table, add column) — the node only handles row data |
+| OpenAI | `@n8n/n8n-nodes-langchain.openAi` (message, analyze images, audio, assistants) | Niche endpoints not covered by the node |
+| OpenAI Chat | `@n8n/n8n-nodes-langchain.lmChatOpenAi` (chat completions in AI chains) | — |
+| Google Sheets | `n8n-nodes-base.googleSheets` | — |
+| Slack | `n8n-nodes-base.slack` | — |
+| GitHub | `n8n-nodes-base.github` | — |
+| Postgres | `n8n-nodes-base.postgres` | — |
+| MySQL | `n8n-nodes-base.mySql` | — |
+| MongoDB | `n8n-nodes-base.mongoDb` | — |
+| Airtable | `n8n-nodes-base.airtable` | — |
+
+**Why this matters:**
+- Built-in nodes use n8n's **credential system** — no API tokens in workflow JSON
+- They handle pagination, rate limiting, and error formatting automatically
+- They're tested and maintained by the n8n team
+- Workflows are more readable (a "NocoDB" node is clearer than an "HTTP Request" to some URL)
 
 ### n8n-skills (in .claude/skills/)
 
@@ -342,14 +392,15 @@ n8n workflows are JSON with nodes and connections arrays.
 
 ### Common Patterns:
 1. **Dashboard server**: Webhook GET → Respond with HTML
-2. **API proxy**: Webhook POST → NocoDB CRUD → Respond with JSON
-3. **Form handler**: Webhook POST → Validate → NocoDB Insert → Respond
-4. **Scheduled sync**: Schedule Trigger → HTTP Request → NocoDB Upsert
+2. **API proxy**: Webhook POST → NocoDB node (CRUD) → Respond with JSON
+3. **Form handler**: Webhook POST → Validate → NocoDB node (Create) → Respond
+4. **Scheduled sync**: Schedule Trigger → HTTP Request → NocoDB node (Upsert)
 
 ### Most-Used n8n Node Types:
 - n8n-nodes-base.webhook — HTTP trigger
 - n8n-nodes-base.respondToWebhook — Send HTTP response
-- n8n-nodes-base.httpRequest — Make HTTP calls (to NocoDB, etc.)
+- **n8n-nodes-base.nocoDb** — NocoDB row CRUD (prefer over HTTP Request)
+- n8n-nodes-base.httpRequest — Generic HTTP calls (use only when no built-in node exists)
 - n8n-nodes-base.code — JavaScript/Python scripting
 - n8n-nodes-base.set — Data transformation
 - n8n-nodes-base.if — Conditional routing
@@ -357,6 +408,7 @@ n8n workflows are JSON with nodes and connections arrays.
 - n8n-nodes-base.merge — Combine data streams
 - n8n-nodes-base.scheduleTrigger — Time-based triggers
 - n8n-nodes-base.manualTrigger — Manual execution
+- **@n8n/n8n-nodes-langchain.openAi** — OpenAI (prefer over HTTP Request)
 - @n8n/n8n-nodes-langchain.agent — AI agents
 
 ---
