@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  STANDALONE FORM PAGE — NocoFlow Starter
+  ============================================================
+  A form page for creating new records in NocoDB via an n8n
+  webhook endpoint. Features:
+  - Client-side validation before submitting
+  - Async fetch() POST (no page reload)
+  - Inline success/error feedback messages
+  - Styled with Tailwind CSS
+
+  HOW TO USE:
+  - Replace WEBHOOK_BASE_URL with your actual n8n webhook URL
+  - Create an n8n webhook endpoint:
+    POST /api/records → proxies to NocoDB create-record
+  - Serve this HTML from: GET /form → Respond with this HTML
+  - Customize the form fields to match YOUR NocoDB table columns
+
+  n8n WORKFLOW STRUCTURE:
+  [Webhook GET /form]          → [Respond with this HTML]
+  [Webhook POST /api/records]  → [HTTP Request to NocoDB] → [Respond JSON]
+  ============================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Record — NocoFlow</title>
+
+  <!-- Tailwind CSS from CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* ---- Brand Colors ---- */
+    :root {
+      --color-primary: #4f46e5;
+      --color-primary-hover: #4338ca;
+      --color-success: #16a34a;
+      --color-error: #dc2626;
+    }
+
+    /* ---- Loading Spinner ---- */
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /*
+      ---- Field Validation Styles ----
+      When a field has invalid input, we highlight it in red.
+      These classes are added/removed by JavaScript.
+    */
+    .field-error {
+      border-color: #dc2626 !important;
+      box-shadow: 0 0 0 1px #dc2626;
+    }
+    .field-error-message {
+      color: #dc2626;
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen flex flex-col">
+
+  <!-- ========== HEADER ========== -->
+  <header class="bg-indigo-600 text-white shadow-md">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <h1 class="text-xl font-bold tracking-tight">NocoFlow Dashboard</h1>
+      <nav class="flex gap-6 text-sm font-medium">
+        <a href="WEBHOOK_BASE_URL/dashboard"
+           class="hover:text-indigo-200 transition-colors">Dashboard</a>
+        <a href="WEBHOOK_BASE_URL/form"
+           class="hover:text-indigo-200 transition-colors">New Record</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ========== MAIN CONTENT ========== -->
+  <main class="flex-1 max-w-2xl mx-auto px-6 py-8 w-full">
+
+    <!--
+      PAGE HEADER
+      Title and description for the form page.
+    -->
+    <div class="mb-8">
+      <h2 class="text-2xl font-semibold text-gray-800">Create New Record</h2>
+      <p class="text-sm text-gray-500 mt-1">
+        Fill in the fields below and click "Submit" to create a new record.
+        Fields marked with <span class="text-red-500">*</span> are required.
+      </p>
+    </div>
+
+    <!--
+      FEEDBACK MESSAGE AREA
+      This div shows success or error messages after form submission.
+      Hidden by default — made visible by JavaScript.
+    -->
+    <div id="feedback" class="hidden mb-6 p-4 rounded-lg text-sm font-medium"></div>
+
+    <!--
+      THE FORM
+      Each field corresponds to a column in your NocoDB table.
+      Customize the fields to match YOUR table structure.
+
+      The form uses the native HTML "required" attribute for basic
+      validation, plus custom JavaScript validation for more control.
+    -->
+    <form id="recordForm"
+          onsubmit="handleSubmit(event)"
+          class="bg-white rounded-xl shadow-sm border border-gray-200 p-8"
+          novalidate>
+      <!--
+        novalidate: Disables the browser's default validation UI.
+        We handle validation ourselves in JavaScript for a better UX.
+      -->
+
+      <!--
+        ============================================================
+        FIELD 1: Name (required text field)
+        ============================================================
+      -->
+      <div class="mb-5">
+        <label for="name" class="block text-sm font-medium text-gray-700 mb-1.5">
+          Name <span class="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          id="name"
+          name="Name"
+          required
+          placeholder="Enter full name"
+          class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm
+                 focus:outline-none focus:ring-2 focus:ring-indigo-500
+                 focus:border-transparent transition-shadow"
+        >
+        <!--
+          Error message placeholder — hidden by default.
+          JavaScript shows it when validation fails.
+        -->
+        <p id="name-error" class="field-error-message hidden"></p>
+      </div>
+
+      <!--
+        ============================================================
+        FIELD 2: Email (email field with format validation)
+        ============================================================
+      -->
+      <div class="mb-5">
+        <label for="email" class="block text-sm font-medium text-gray-700 mb-1.5">
+          Email <span class="text-red-500">*</span>
+        </label>
+        <input
+          type="email"
+          id="email"
+          name="Email"
+          required
+          placeholder="email@example.com"
+          class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm
+                 focus:outline-none focus:ring-2 focus:ring-indigo-500
+                 focus:border-transparent transition-shadow"
+        >
+        <p id="email-error" class="field-error-message hidden"></p>
+      </div>
+
+      <!--
+        ============================================================
+        FIELD 3: Status (dropdown select)
+        ============================================================
+        A <select> creates a dropdown. Each <option> is one choice.
+        The "value" attribute is what gets sent to the server.
+      -->
+      <div class="mb-5">
+        <label for="status" class="block text-sm font-medium text-gray-700 mb-1.5">
+          Status
+        </label>
+        <select
+          id="status"
+          name="Status"
+          class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm
+                 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500
+                 focus:border-transparent transition-shadow"
+        >
+          <option value="Active">Active</option>
+          <option value="Pending">Pending</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+        <!--
+          No error message needed — dropdowns always have a valid selection.
+        -->
+      </div>
+
+      <!--
+        ============================================================
+        FIELD 4: Notes (multi-line textarea)
+        ============================================================
+        A <textarea> allows multi-line text input. The "rows" attribute
+        sets the visible height (number of text lines).
+      -->
+      <div class="mb-8">
+        <label for="notes" class="block text-sm font-medium text-gray-700 mb-1.5">
+          Notes
+        </label>
+        <textarea
+          id="notes"
+          name="Notes"
+          rows="4"
+          placeholder="Add any additional notes here..."
+          class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm
+                 focus:outline-none focus:ring-2 focus:ring-indigo-500
+                 focus:border-transparent transition-shadow resize-y"
+        ></textarea>
+        <!--
+          "resize-y" allows vertical resizing only (not horizontal).
+        -->
+        <p class="text-xs text-gray-400 mt-1">Optional — add context or details.</p>
+      </div>
+
+      <!--
+        ============================================================
+        FORM ACTIONS — Submit and Reset buttons
+        ============================================================
+      -->
+      <div class="flex items-center gap-4">
+        <!--
+          SUBMIT BUTTON
+          type="submit" triggers the form's onsubmit handler.
+          We use an id so JavaScript can disable it during submission.
+        -->
+        <button
+          type="submit"
+          id="submitBtn"
+          class="px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm
+                 font-medium hover:bg-indigo-700 transition-colors
+                 flex items-center gap-2 disabled:opacity-50
+                 disabled:cursor-not-allowed"
+        >
+          Submit
+        </button>
+
+        <!--
+          RESET BUTTON
+          type="button" prevents it from submitting the form.
+          It clears all fields and hides validation errors.
+        -->
+        <button
+          type="button"
+          onclick="resetForm()"
+          class="px-6 py-2.5 bg-white text-gray-700 border border-gray-300
+                 rounded-lg text-sm font-medium hover:bg-gray-50
+                 transition-colors"
+        >
+          Reset
+        </button>
+
+        <!--
+          LINK TO DASHBOARD
+          Takes the user back to the main dashboard page.
+        -->
+        <a href="WEBHOOK_BASE_URL/dashboard"
+           class="ml-auto text-sm text-indigo-600 hover:text-indigo-800
+                  font-medium transition-colors">
+          Back to Dashboard
+        </a>
+      </div>
+    </form>
+
+  </main>
+
+  <!-- ========== FOOTER ========== -->
+  <footer class="bg-gray-100 border-t border-gray-200">
+    <div class="max-w-7xl mx-auto px-6 py-4 text-center text-sm text-gray-500">
+      Built with NocoDB + n8n + Claude Code
+    </div>
+  </footer>
+
+  <!--
+    ============================================================
+    JAVASCRIPT — Form Logic
+    ============================================================
+  -->
+  <script>
+    // ==========================================================
+    // CONFIGURATION
+    // ==========================================================
+    // Replace this with your actual n8n webhook base URL.
+    const WEBHOOK_BASE_URL = 'WEBHOOK_BASE_URL';
+
+
+    // ==========================================================
+    // FORM VALIDATION
+    // ==========================================================
+    // Validates all required fields before submitting.
+    // Returns true if valid, false if there are errors.
+    //
+    // WHY CLIENT-SIDE VALIDATION?
+    // - Gives instant feedback without a server round-trip
+    // - Better user experience (errors shown next to the field)
+    // - But NEVER rely on it alone — always validate server-side too!
+    //
+    function validateForm() {
+      let isValid = true;
+
+      // ---- Clear previous errors ----
+      // Remove error styling from all fields
+      clearErrors();
+
+      // ---- Validate: Name ----
+      const name = document.getElementById('name');
+      if (!name.value.trim()) {
+        showFieldError(name, 'name-error', 'Name is required');
+        isValid = false;
+      }
+
+      // ---- Validate: Email ----
+      const email = document.getElementById('email');
+      if (!email.value.trim()) {
+        showFieldError(email, 'email-error', 'Email is required');
+        isValid = false;
+      } else if (!isValidEmail(email.value.trim())) {
+        // Check email format using a simple regex
+        showFieldError(email, 'email-error', 'Please enter a valid email address');
+        isValid = false;
+      }
+
+      return isValid;
+    }
+
+
+    // ==========================================================
+    // VALIDATION HELPERS
+    // ==========================================================
+
+    // ---- Show error on a specific field ----
+    // Adds red border to the field and shows the error message below it.
+    //
+    function showFieldError(inputElement, errorId, message) {
+      // Add red border to the input
+      inputElement.classList.add('field-error');
+
+      // Show the error message
+      const errorElement = document.getElementById(errorId);
+      errorElement.textContent = message;
+      errorElement.classList.remove('hidden');
+    }
+
+    // ---- Clear all field errors ----
+    // Removes error styling and hides error messages.
+    //
+    function clearErrors() {
+      // Remove error borders from all inputs
+      document.querySelectorAll('.field-error').forEach((el) => {
+        el.classList.remove('field-error');
+      });
+
+      // Hide all error messages
+      document.querySelectorAll('.field-error-message').forEach((el) => {
+        el.classList.add('hidden');
+      });
+    }
+
+    // ---- Email format validation ----
+    // A simple check for "something@something.something".
+    // This isn't 100% strict (email RFCs are complex), but it
+    // catches the most common mistakes.
+    //
+    function isValidEmail(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+
+    // ==========================================================
+    // FORM SUBMISSION
+    // ==========================================================
+    // Called when the user clicks "Submit". Validates the form,
+    // sends data to the n8n webhook, and shows feedback.
+    //
+    async function handleSubmit(event) {
+      // Prevent the default form submission (which would reload the page)
+      event.preventDefault();
+
+      // ---- Run validation ----
+      if (!validateForm()) {
+        // Scroll to the first error field so the user sees it
+        const firstError = document.querySelector('.field-error');
+        if (firstError) {
+          firstError.focus();
+        }
+        return; // Stop — don't submit invalid data
+      }
+
+      // ---- Show loading state ----
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<div class="spinner"></div> Submitting...';
+
+      // Hide any previous feedback message
+      hideFeedback();
+
+      // ---- Gather form data ----
+      // Read values from each field. Customize these to match YOUR table.
+      const formData = {
+        Name: document.getElementById('name').value.trim(),
+        Email: document.getElementById('email').value.trim(),
+        Status: document.getElementById('status').value,
+        Notes: document.getElementById('notes').value.trim(),
+      };
+
+      // Remove empty optional fields (don't send blank values)
+      if (!formData.Notes) delete formData.Notes;
+
+      try {
+        // ---- Send to n8n webhook ----
+        // POST {WEBHOOK_BASE_URL}/api/records
+        // The n8n workflow forwards this to NocoDB to create the record.
+        const url = `${WEBHOOK_BASE_URL}/api/records`;
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+
+        // Check for server errors
+        if (!response.ok) {
+          let errorMessage = `Server returned ${response.status}`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.error || errorMessage;
+          } catch {
+            // Response wasn't JSON
+          }
+          throw new Error(errorMessage);
+        }
+
+        // ---- SUCCESS! ----
+        showFeedback(
+          `Record created successfully! "${formData.Name}" has been added.`,
+          'success'
+        );
+
+        // Reset the form for the next entry
+        document.getElementById('recordForm').reset();
+        clearErrors();
+
+      } catch (error) {
+        // ---- HANDLE ERROR ----
+        showFeedback(
+          `Failed to create record: ${error.message}`,
+          'error'
+        );
+        console.error('Submission error:', error);
+
+      } finally {
+        // ---- Restore button state ----
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Submit';
+      }
+    }
+
+
+    // ==========================================================
+    // FEEDBACK MESSAGES
+    // ==========================================================
+    // Shows a success or error message above the form.
+    //
+    function showFeedback(message, type) {
+      const feedback = document.getElementById('feedback');
+
+      // Set colors based on type
+      if (type === 'success') {
+        feedback.className = 'mb-6 p-4 rounded-lg text-sm font-medium bg-green-50 text-green-800 border border-green-200';
+      } else if (type === 'error') {
+        feedback.className = 'mb-6 p-4 rounded-lg text-sm font-medium bg-red-50 text-red-800 border border-red-200';
+      }
+
+      feedback.textContent = message;
+      feedback.classList.remove('hidden');
+
+      // Scroll the feedback message into view
+      feedback.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function hideFeedback() {
+      document.getElementById('feedback').classList.add('hidden');
+    }
+
+
+    // ==========================================================
+    // RESET FORM
+    // ==========================================================
+    // Clears all fields, validation errors, and feedback messages.
+    //
+    function resetForm() {
+      document.getElementById('recordForm').reset();
+      clearErrors();
+      hideFeedback();
+    }
+
+
+    // ==========================================================
+    // CLEAR ERRORS ON INPUT
+    // ==========================================================
+    // When the user starts typing in a field that has an error,
+    // automatically clear the error. This gives immediate feedback
+    // that their correction is being recognized.
+    //
+    document.querySelectorAll('input, textarea').forEach((field) => {
+      field.addEventListener('input', () => {
+        // Remove error styling from this specific field
+        field.classList.remove('field-error');
+
+        // Hide this field's error message (if it has one)
+        const errorMsg = document.getElementById(`${field.id}-error`);
+        if (errorMsg) {
+          errorMsg.classList.add('hidden');
+        }
+      });
+    });
+  </script>
+
+</body>
+</html>

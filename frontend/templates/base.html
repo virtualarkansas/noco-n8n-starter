@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  BASE TEMPLATE — NocoFlow Starter
+  ============================================================
+  This is the base HTML structure for pages served via n8n
+  webhooks. Copy this file as a starting point for new pages.
+
+  HOW IT WORKS:
+  1. An n8n Webhook node (HTTP GET) catches the browser request
+  2. A Respond to Webhook node sends THIS HTML back
+  3. The browser renders the page
+  4. JavaScript in <script> calls OTHER n8n webhooks for data
+
+  KEY CONSTRAINTS (due to n8n iframe sandboxing):
+  - No localStorage or sessionStorage (blocked by sandbox)
+  - No window.top access (blocked by sandbox)
+  - All URLs must be ABSOLUTE (relative URLs may break)
+  - Auth via embedded tokens only (no cookies)
+
+  STYLING:
+  - Uses Tailwind CSS via CDN (no build step needed)
+  - See frontend/styles/main.css for custom additions
+  ============================================================
+-->
+<html lang="en">
+<head>
+  <!--
+    CHARSET & VIEWPORT
+    - UTF-8 supports all languages and special characters
+    - Viewport meta makes the page responsive on mobile devices
+  -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- PAGE TITLE — shown in browser tab -->
+  <title>NocoFlow Dashboard</title>
+
+  <!--
+    TAILWIND CSS — loaded from CDN
+    This gives us utility classes like "bg-blue-500", "text-white", "p-4", etc.
+    No build step needed — just include this script tag.
+    Docs: https://tailwindcss.com/docs
+  -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!--
+    CUSTOM STYLES (optional)
+    For anything Tailwind doesn't cover: brand colors, animations, etc.
+    In a webhook-served page, inline the CSS here instead of linking
+    an external file (since relative URLs are unreliable in the iframe).
+  -->
+  <style>
+    /* ---- Brand Colors (CSS Custom Properties) ---- */
+    :root {
+      --color-primary: #4f46e5;    /* Indigo — main brand color */
+      --color-primary-hover: #4338ca;
+      --color-success: #16a34a;
+      --color-error: #dc2626;
+      --color-warning: #d97706;
+    }
+
+    /* ---- Loading Spinner ---- */
+    /* A simple spinning circle, shown while data is loading */
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid #e5e7eb;           /* Light gray track */
+      border-top-color: var(--color-primary); /* Colored spinning part */
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen flex flex-col">
+
+  <!--
+    ============================================================
+    HEADER / NAVIGATION BAR
+    ============================================================
+    A simple top bar with the project name and navigation links.
+    Uses Tailwind classes:
+    - bg-indigo-600: indigo background
+    - text-white: white text
+    - shadow-md: subtle drop shadow
+    - px-6 py-4: horizontal/vertical padding
+  -->
+  <header class="bg-indigo-600 text-white shadow-md">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <!-- Project name / logo -->
+      <h1 class="text-xl font-bold tracking-tight">
+        NocoFlow Dashboard
+      </h1>
+
+      <!-- Navigation links — update href with your absolute webhook URLs -->
+      <nav class="flex gap-6 text-sm font-medium">
+        <!--
+          IMPORTANT: Use ABSOLUTE URLs here.
+          Replace WEBHOOK_BASE_URL with your actual n8n webhook base URL.
+          Example: https://your-name.app.n8n.cloud/webhook
+        -->
+        <a href="WEBHOOK_BASE_URL/dashboard"
+           class="hover:text-indigo-200 transition-colors">
+          Dashboard
+        </a>
+        <a href="WEBHOOK_BASE_URL/form"
+           class="hover:text-indigo-200 transition-colors">
+          New Record
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!--
+    ============================================================
+    MAIN CONTENT AREA
+    ============================================================
+    This is where your page-specific content goes.
+    The "flex-1" class makes it expand to fill available space
+    (pushing the footer to the bottom).
+  -->
+  <main class="flex-1 max-w-7xl mx-auto px-6 py-8 w-full">
+
+    <!-- Replace this placeholder with your actual content -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+      <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+        Welcome to NocoFlow
+      </h2>
+      <p class="text-gray-600 leading-relaxed">
+        This is the base template. Copy this file and replace this section
+        with your dashboard, form, or any other content. See
+        <code class="bg-gray-100 px-1.5 py-0.5 rounded text-sm">dashboard.html</code>
+        and
+        <code class="bg-gray-100 px-1.5 py-0.5 rounded text-sm">form.html</code>
+        for complete working examples.
+      </p>
+    </div>
+
+  </main>
+
+  <!--
+    ============================================================
+    FOOTER
+    ============================================================
+    A simple footer at the bottom of every page.
+  -->
+  <footer class="bg-gray-100 border-t border-gray-200">
+    <div class="max-w-7xl mx-auto px-6 py-4 text-center text-sm text-gray-500">
+      Built with NocoDB + n8n + Claude Code
+    </div>
+  </footer>
+
+  <!--
+    ============================================================
+    JAVASCRIPT — API Helper Functions
+    ============================================================
+    These utility functions make it easy to call n8n webhook
+    endpoints from any page. Include this script block in every
+    page, or copy the functions you need.
+  -->
+  <script>
+    // --------------------------------------------------------
+    // CONFIGURATION
+    // --------------------------------------------------------
+    // IMPORTANT: Replace this with your actual n8n webhook base URL.
+    // This is the ONLY place you need to change the URL — all API
+    // calls below use this constant.
+    //
+    // Examples:
+    //   'https://your-name.app.n8n.cloud/webhook'
+    //   'http://localhost:5678/webhook'
+    const WEBHOOK_BASE_URL = 'WEBHOOK_BASE_URL';
+
+
+    // --------------------------------------------------------
+    // apiFetch() — A wrapper around fetch() for API calls
+    // --------------------------------------------------------
+    // This function handles the common pattern of:
+    //   1. Building the full URL from a path
+    //   2. Setting the right headers
+    //   3. Sending JSON data for POST/PATCH requests
+    //   4. Parsing the JSON response
+    //   5. Handling errors consistently
+    //
+    // USAGE:
+    //   // GET request (fetch data):
+    //   const data = await apiFetch('/api/records');
+    //
+    //   // POST request (create data):
+    //   const result = await apiFetch('/api/records', {
+    //     method: 'POST',
+    //     body: { Name: 'Alice', Email: 'alice@example.com' }
+    //   });
+    //
+    //   // With query parameters:
+    //   const filtered = await apiFetch('/api/records?status=active');
+    //
+    async function apiFetch(path, options = {}) {
+      // Build the full absolute URL
+      // Example: 'https://my-n8n.cloud/webhook' + '/api/records'
+      const url = `${WEBHOOK_BASE_URL}${path}`;
+
+      // Set up the request configuration
+      const config = {
+        method: options.method || 'GET',  // Default to GET
+        headers: {
+          // Tell the server we're sending/expecting JSON
+          'Content-Type': 'application/json',
+          // Spread any additional headers the caller provided
+          ...options.headers,
+        },
+      };
+
+      // If there's a request body (for POST, PUT, PATCH), convert it to JSON
+      if (options.body) {
+        config.body = JSON.stringify(options.body);
+      }
+
+      // Make the actual HTTP request
+      const response = await fetch(url, config);
+
+      // Check if the server returned an error status (4xx or 5xx)
+      if (!response.ok) {
+        // Try to get the error message from the response body
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch {
+          // Response wasn't JSON — use the default error message
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Parse and return the JSON response
+      return response.json();
+    }
+
+
+    // --------------------------------------------------------
+    // showToast() — Display a temporary notification message
+    // --------------------------------------------------------
+    // Shows a small notification at the bottom of the screen
+    // that automatically disappears after a few seconds.
+    //
+    // USAGE:
+    //   showToast('Record created!', 'success');
+    //   showToast('Something went wrong', 'error');
+    //   showToast('Please check your input', 'warning');
+    //
+    function showToast(message, type = 'info') {
+      // Create the toast element
+      const toast = document.createElement('div');
+
+      // Pick colors based on the message type
+      const colors = {
+        success: 'bg-green-600',
+        error: 'bg-red-600',
+        warning: 'bg-yellow-600',
+        info: 'bg-indigo-600',
+      };
+
+      // Apply Tailwind classes for styling and positioning
+      toast.className = `
+        fixed bottom-6 right-6 z-50
+        ${colors[type] || colors.info} text-white
+        px-5 py-3 rounded-lg shadow-lg
+        text-sm font-medium
+        transition-all duration-300 ease-in-out
+        translate-y-0 opacity-100
+      `;
+      toast.textContent = message;
+
+      // Add it to the page
+      document.body.appendChild(toast);
+
+      // Automatically remove it after 4 seconds (with a fade-out)
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        // Remove from DOM after the fade animation completes
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+  </script>
+
+</body>
+</html>
