@@ -49,10 +49,14 @@ case "$ACTION" in
     [ -n "$2" ] && QUERY="?workflowId=$2"
     curl -s -H "$AUTH_HEADER" "$BASE_URL/executions$QUERY"
     ;;
+  list-credentials)
+    curl -s -H "$AUTH_HEADER" "$BASE_URL/credentials"
+    ;;
   *)
     echo "Usage: n8n.sh <action> [args...]"
     echo "Actions: health, list-workflows, get-workflow, create-workflow,"
-    echo "         update-workflow, activate, deactivate, list-executions"
+    echo "         update-workflow, activate, deactivate, list-executions,"
+    echo "         list-credentials"
     exit 1
     ;;
 esac
