@@ -1,4 +1,4 @@
-# NocoDB REST API v3 — Complete Guide
+# NocoDB REST API — Complete Guide
 
 This guide covers everything you need to interact with NocoDB's REST API.
 All examples use the wrapper script (`bash .claude/scripts/noco.sh`) or
@@ -6,18 +6,41 @@ curl for reference.
 
 ---
 
+## ⚠️ v2 vs v3 API — Read This First
+
+NocoDB uses **two different API versions** and you must use the right one:
+
+| What you're doing | API version | Base URL |
+|---|---|---|
+| **Reading/writing records** (CRUD) | **v3** | `{NOCODB_URL}/api/v3` |
+| **Creating/modifying tables & columns** (schema) | **v2** | `{NOCODB_URL}/api/v2` |
+| **Listing bases & tables** (discovery) | **v3** | `{NOCODB_URL}/api/v3` |
+
+**Common mistakes to avoid:**
+- v3 table creation **silently ignores** any `columns` array — your table
+  will be created with zero custom columns and no error
+- v3 has **no column creation endpoint** — `POST /api/v3/meta/tables/{id}/columns`
+  returns 404
+- Always create the table first (v2), then add columns one at a time (v2)
+
+The wrapper script (`noco.sh`) handles version routing automatically.
+
+---
+
 ## Table of Contents
 
-1. [Authentication](#authentication)
-2. [Base & Table Discovery](#base--table-discovery)
-3. [CRUD Operations](#crud-operations)
-4. [Filtering](#filtering)
-5. [Sorting](#sorting)
-6. [Pagination](#pagination)
-7. [Field Selection](#field-selection)
-8. [Linked Records](#linked-records)
-9. [Error Handling](#error-handling)
-10. [Official Documentation](#official-documentation)
+1. [v2 vs v3 API — Read This First](#️-v2-vs-v3-api--read-this-first)
+2. [Authentication](#authentication)
+3. [Base & Table Discovery](#base--table-discovery)
+4. [Schema Operations (v2)](#schema-operations-v2)
+5. [CRUD Operations](#crud-operations)
+6. [Filtering](#filtering)
+7. [Sorting](#sorting)
+8. [Pagination](#pagination)
+9. [Field Selection](#field-selection)
+10. [Linked Records](#linked-records)
+11. [Error Handling](#error-handling)
+12. [Official Documentation](#official-documentation)
 
 ---
 
@@ -133,6 +156,138 @@ curl -s \
 ```
 
 The `id` field (e.g., `tbl_xyz789`) is your **Table ID**.
+
+---
+
+## Schema Operations (v2)
+
+Schema operations (creating tables, adding columns) use the **v2 API**.
+This is the most common source of confusion — do NOT use v3 for these.
+
+### Create a Table
+
+```bash
+# Using wrapper script:
+bash .claude/scripts/noco.sh create-table '{"title": "Tasks"}'
+
+# Equivalent curl:
+curl -s -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Tasks"}' \
+  "$NOCODB_URL/api/v2/meta/bases/$BASE_ID/tables"
+```
+
+**Response:**
+```json
+{
+  "id": "tbl_abc123",
+  "title": "Tasks",
+  "columns": [
+    { "id": "fld_id", "column_name": "Id", "uidt": "ID" },
+    { "id": "fld_title", "column_name": "Title", "uidt": "SingleLineText" },
+    { "id": "fld_created", "column_name": "CreatedAt", "uidt": "CreatedTime" },
+    { "id": "fld_updated", "column_name": "UpdatedAt", "uidt": "LastModifiedTime" }
+  ]
+}
+```
+
+NocoDB auto-generates system columns (Id, Title, CreatedAt, UpdatedAt, etc.).
+
+**⚠️ Do NOT pass a `columns` array in the request body.** The v2 endpoint
+may accept it in some versions, but the safest pattern is: create the table
+first, then add columns one at a time.
+
+### Get Table Metadata
+
+```bash
+# Using wrapper script:
+bash .claude/scripts/noco.sh get-table tbl_abc123
+
+# Equivalent curl:
+curl -s \
+  -H "Authorization: Bearer $TOKEN" \
+  "$NOCODB_URL/api/v2/meta/tables/tbl_abc123"
+```
+
+Returns the full table definition including all column metadata.
+
+### Add a Column
+
+```bash
+# Using wrapper script:
+bash .claude/scripts/noco.sh create-column tbl_abc123 \
+  '{"column_name": "Status", "uidt": "SingleLineText"}'
+
+# Equivalent curl:
+curl -s -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"column_name": "Status", "uidt": "SingleLineText"}' \
+  "$NOCODB_URL/api/v2/meta/tables/tbl_abc123/columns"
+```
+
+### Common Column Types (uidt values)
+
+| uidt | Description | Extra fields |
+|------|-------------|-------------|
+| `SingleLineText` | Short text | — |
+| `LongText` | Multi-line text / rich text | — |
+| `Number` | Integer or decimal | — |
+| `Checkbox` | Boolean true/false | — |
+| `SingleSelect` | Dropdown (one choice) | `dtxp`: `"'Option1','Option2','Option3'"` |
+| `MultiSelect` | Tags (multiple choices) | `dtxp`: `"'Tag1','Tag2','Tag3'"` |
+| `Date` | Date only | — |
+| `DateTime` | Date and time | — |
+| `Email` | Email address | — |
+| `URL` | Web link | — |
+| `Attachment` | File uploads | — |
+| `Rating` | Star rating | — |
+
+### SingleSelect Example
+
+```bash
+bash .claude/scripts/noco.sh create-column tbl_abc123 \
+  '{"column_name": "Status", "uidt": "SingleSelect", "dtxp": "'\''Todo'\'','\''In Progress'\'','\''Done'\''"}'
+
+# Or use the simpler curl form:
+curl -s -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"column_name":"Status","uidt":"SingleSelect","dtxp":"'"'"'Todo'"'"','"'"'In Progress'"'"','"'"'Done'"'"'"}' \
+  "$NOCODB_URL/api/v2/meta/tables/tbl_abc123/columns"
+```
+
+**Tip:** SingleSelect dtxp quoting is tricky in bash. If it gives you
+trouble, use `SingleLineText` instead — it works for all text data,
+just without the dropdown constraint.
+
+### Full Table Setup Pattern
+
+The correct sequence for creating a table with custom columns:
+
+```bash
+# Step 1: Create the table (v2 — no columns in body)
+bash .claude/scripts/noco.sh create-table '{"title": "Announcements"}'
+# → returns {"id": "tbl_xyz", ...}
+
+# Step 2: Add columns one at a time (v2)
+bash .claude/scripts/noco.sh create-column tbl_xyz \
+  '{"column_name": "Message", "uidt": "LongText"}'
+
+bash .claude/scripts/noco.sh create-column tbl_xyz \
+  '{"column_name": "Author", "uidt": "SingleLineText"}'
+
+bash .claude/scripts/noco.sh create-column tbl_xyz \
+  '{"column_name": "Priority", "uidt": "Number"}'
+
+bash .claude/scripts/noco.sh create-column tbl_xyz \
+  '{"column_name": "Published", "uidt": "Checkbox"}'
+
+# Step 3: Now use v3 for data operations
+bash .claude/scripts/noco.sh create-record tbl_xyz \
+  '{"Title": "Welcome!", "Message": "First post", "Author": "Admin", "Priority": 1}'
+```
 
 ---
 
