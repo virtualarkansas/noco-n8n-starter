@@ -1,0 +1,284 @@
+# NocoFlow Starter — Project Context for Claude Code
+
+## What This Project Is
+
+A development environment for building:
+1. **NocoDB dashboards** — web interfaces backed by NocoDB as the database
+2. **n8n workflows** — automation workflows connecting services, APIs, and NocoDB
+3. **Frontend interfaces** — HTML/CSS/JS pages served via n8n webhook nodes
+4. **Custom n8n nodes** — TypeScript nodes for extending n8n (optional)
+
+Target audience: beginner developers. Prioritize clarity, comments, and
+step-by-step guidance in all code and explanations.
+
+---
+
+## ⚠️ SECURITY RULES — ALWAYS FOLLOW
+
+1. NEVER echo, print, cat, or display the value of any API key or token
+2. NEVER commit .env files or their contents to git
+3. NEVER include API keys in curl commands — use the wrapper scripts instead
+4. When debugging auth errors: check if a key IS SET ([ -z "$VAR" ]), never show it
+5. NEVER put API tokens in workflow JSON files — use n8n credentials system
+6. If a script fails with 401/403, tell the user to re-check their token — don't try to read it
+
+---
+
+## Architecture Overview
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  Frontend HTML   │────▶│  n8n Webhooks    │────▶│    NocoDB       │
+│ (served by n8n)  │◀────│  (workflows)     │◀────│   (database)    │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+        │                        │
+        │  fetch() / POST        │  HTTP Request node
+        ▼                        ▼
+   Browser User           External APIs
+```
+
+**Data flow:**
+- n8n Webhook node receives HTTP GET → serves HTML from frontend/templates/
+- Frontend JavaScript calls n8n webhook endpoints via fetch()
+- n8n workflows read/write NocoDB via HTTP Request node
+- NocoDB stores all structured data (tables, views, forms)
+
+---
+
+## Available Tools
+
+### n8n-mcp Server (localhost:3001)
+
+A local HTTP server providing searchable access to 1,084 n8n nodes, 2,646
+real-world template configurations, and workflow validation.
+
+**Start it:** `bash .claude/scripts/start-mcp.sh`
+**Query it:** `bash .claude/scripts/mcp.sh <tool> '<json_args>'`
+
+**Key tools for building workflows:**
+
+```bash
+# Search for nodes by keyword
+bash .claude/scripts/mcp.sh search_nodes '{"query":"slack","includeExamples":true}'
+
+# Get detailed node info (use BEFORE configuring any node)
+bash .claude/scripts/mcp.sh get_node '{"nodeType":"n8n-nodes-base.webhook","detail":"standard","includeExamples":true}'
+
+# Validate a node config before using it
+bash .claude/scripts/mcp.sh validate_node '{"nodeType":"n8n-nodes-base.httpRequest","config":{"method":"POST","url":"..."},"mode":"full","profile":"runtime"}'
+
+# Search workflow templates (check BEFORE building from scratch — 2,709 available)
+bash .claude/scripts/mcp.sh search_templates '{"query":"webhook notification"}'
+bash .claude/scripts/mcp.sh search_templates '{"searchMode":"by_task","task":"webhook_processing"}'
+
+# Get a complete template
+bash .claude/scripts/mcp.sh get_template '{"templateId":1234,"mode":"full"}'
+
+# Validate a complete workflow JSON
+bash .claude/scripts/mcp.sh validate_workflow '{"workflow":<workflow_json>}'
+
+# Get best practices documentation
+bash .claude/scripts/mcp.sh tools_documentation '{}'
+```
+
+**WORKFLOW BUILDING PROCESS:**
+1. ALWAYS search templates first — there are 2,709 available
+2. Use get_node with includeExamples:true for every node you configure
+3. NEVER trust default parameter values — explicitly set ALL parameters
+4. Validate nodes individually, then validate the complete workflow
+5. Use validate_workflow before deploying or exporting
+
+### n8n-skills (in .claude/skills/)
+
+7 specialized skills for n8n development are loaded from .claude/skills/.
+These teach correct expression syntax, workflow patterns, validation,
+and code node usage. They activate automatically when relevant.
+
+### NocoDB API (via wrapper script)
+
+```bash
+bash .claude/scripts/noco.sh list-bases
+bash .claude/scripts/noco.sh list-tables
+bash .claude/scripts/noco.sh list-records <tableId> [where] [limit] [offset]
+bash .claude/scripts/noco.sh get-record <tableId> <recordId>
+bash .claude/scripts/noco.sh create-record <tableId> '<json>'
+bash .claude/scripts/noco.sh update-record <tableId> <recordId> '<json>'
+bash .claude/scripts/noco.sh delete-record <tableId> <recordId>
+```
+
+### n8n API (via wrapper script)
+
+```bash
+bash .claude/scripts/n8n.sh list-workflows
+bash .claude/scripts/n8n.sh get-workflow <id>
+bash .claude/scripts/n8n.sh create-workflow '<workflow_json>'
+bash .claude/scripts/n8n.sh update-workflow <id> '<workflow_json>'
+bash .claude/scripts/n8n.sh activate <id>
+bash .claude/scripts/n8n.sh deactivate <id>
+bash .claude/scripts/n8n.sh list-executions [workflowId]
+```
+
+---
+
+## Environment Variables
+
+Provide these at session start via:
+```bash
+bash .claude/scripts/setup-env.sh <NOCODB_URL> <NOCODB_TOKEN> <NOCODB_BASE_ID> <N8N_URL> <N8N_API_KEY>
+```
+
+### NocoDB
+- NOCODB_URL — Instance URL (e.g., https://app.nocodb.com or http://localhost:8080)
+- NOCODB_API_TOKEN — API token (Team & Settings → API Tokens)
+- NOCODB_BASE_ID — Base ID (alphanumeric, prefixed with 'p', visible in URL)
+
+### n8n
+- N8N_URL — Instance URL (e.g., https://your-name.app.n8n.cloud or http://localhost:5678)
+- N8N_API_KEY — API key (Settings → n8n API → Create an API key)
+
+All are optional. The template works without them.
+
+---
+
+## API Quick References
+
+### NocoDB REST API (v3)
+
+**Base URL:** {NOCODB_URL}/api/v3
+**Auth:** Authorization: Bearer {token} or xc-token: {token}
+**Rate limit:** 5 req/sec/user (429 = wait 30s)
+
+**Key endpoints:**
+- GET /meta/bases — list all bases
+- GET /meta/bases/{baseId}/tables — list tables in a base
+- GET /{baseId}/{tableId} — list records (supports where, sort, fields, limit, offset)
+- POST /{baseId}/{tableId} — create record(s)
+- PATCH /{baseId}/{tableId}/{recordId} — update a record
+- DELETE /{baseId}/{tableId}/{recordId} — delete a record
+
+**Filtering:** ?where=(Status,eq,Active)~and(Priority,gte,3)
+**Operators:** eq, neq, gt, gte, lt, lte, like, nlike, is, isnot
+
+**Docs:** https://data-apis-v2.nocodb.com/ and https://all-apis.nocodb.com/
+
+### n8n REST API
+
+**Base URL:** {N8N_URL}/api/v1
+**Auth:** X-N8N-API-KEY: {key}
+
+**Key endpoints:**
+- GET /workflows — list workflows
+- POST /workflows — create workflow
+- GET /workflows/{id} — get workflow details
+- PUT /workflows/{id} — update workflow
+- POST /workflows/{id}/activate — activate
+- GET /executions — list execution history
+
+**Docs:** https://docs.n8n.io/api/
+
+---
+
+## Serving Frontend from n8n Webhooks
+
+### Pattern: Webhook → Respond with HTML
+
+1. **Webhook node**: HTTP Method = GET, Path = /dashboard
+2. **Respond to Webhook node**: Response Mode = Text, Content-Type = text/html
+3. Paste HTML into the Body field (or use expression to load it)
+
+### Limitations (n8n >= v1.103.0):
+- HTML responses are wrapped in a sandboxed iframe
+- JavaScript cannot access window.top, localStorage, or sessionStorage
+- Use **absolute URLs** for all links and form actions
+- For auth, embed short-lived tokens in HTML (no cookie/header auth in iframe)
+- Forms POST to separate webhook endpoints using fetch() with full URLs
+
+### Frontend-to-n8n Communication:
+
+```javascript
+const N8N_BASE = 'https://your-n8n-instance.com/webhook';
+
+async function loadRecords() {
+  const response = await fetch(`${N8N_BASE}/api/records`);
+  const data = await response.json();
+  renderTable(data);
+}
+
+async function createRecord(formData) {
+  await fetch(`${N8N_BASE}/api/records`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(formData)
+  });
+}
+```
+
+---
+
+## Working with n8n Workflows
+
+### Workflow JSON Structure
+
+n8n workflows are JSON with nodes and connections arrays.
+
+**CRITICAL:** Always use the n8n-mcp server to:
+- Look up correct node types (e.g., n8n-nodes-base.webhook, not webhook)
+- Get required properties for each node
+- Validate configurations before deployment
+
+### Common Patterns:
+1. **Dashboard server**: Webhook GET → Respond with HTML
+2. **API proxy**: Webhook POST → NocoDB CRUD → Respond with JSON
+3. **Form handler**: Webhook POST → Validate → NocoDB Insert → Respond
+4. **Scheduled sync**: Schedule Trigger → HTTP Request → NocoDB Upsert
+
+### Most-Used n8n Node Types:
+- n8n-nodes-base.webhook — HTTP trigger
+- n8n-nodes-base.respondToWebhook — Send HTTP response
+- n8n-nodes-base.httpRequest — Make HTTP calls (to NocoDB, etc.)
+- n8n-nodes-base.code — JavaScript/Python scripting
+- n8n-nodes-base.set — Data transformation
+- n8n-nodes-base.if — Conditional routing
+- n8n-nodes-base.switch — Multi-branch routing
+- n8n-nodes-base.merge — Combine data streams
+- n8n-nodes-base.scheduleTrigger — Time-based triggers
+- n8n-nodes-base.manualTrigger — Manual execution
+- @n8n/n8n-nodes-langchain.agent — AI agents
+
+---
+
+## Custom n8n Node Development
+
+Custom nodes live in n8n-nodes/:
+
+```
+n8n-nodes/
+├── package.json          # Must follow naming: n8n-nodes-<name>
+├── tsconfig.json
+├── nodes/
+│   └── MyNode/
+│       ├── MyNode.node.ts       # Node logic (implements INodeType)
+│       └── MyNode.node.json     # Node UI description
+└── credentials/
+    └── MyApi.credentials.ts     # Credential type definition
+```
+
+**Key requirements:**
+- Package name must match pattern n8n-nodes-*
+- Node class must implement INodeType
+- Use this.getNodeParameter() for inputs
+- Use this.helpers.httpRequest() for API calls
+- Docs: https://docs.n8n.io/integrations/creating-nodes/
+
+---
+
+## Project Conventions
+
+- Frontend HTML: self-contained or CDN links (for easy webhook serving)
+- Vanilla JavaScript (no build step) — beginner-friendly
+- Store workflow JSONs in workflows/examples/ with descriptive names
+- Use .env for all secrets — never commit tokens
+- Comment thoroughly — this is a learning template
+- Prefer fetch() over XMLHttpRequest
+- Use async/await over .then() chains
+- All code should work in modern browsers (ES2020+)
