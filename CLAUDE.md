@@ -24,6 +24,27 @@ step-by-step guidance in all code and explanations.
 
 ---
 
+## Session Bootstrap
+
+This project uses a SessionStart hook (.claude/settings.json) that
+automatically runs scripts/install_pkgs.sh when you open the repo.
+It handles:
+
+- Installing n8n-mcp (node documentation server)
+- Downloading n8n-skills (7 workflow pattern guides → .claude/skills/)
+- Starting the n8n-mcp HTTP server on localhost:3001
+- Making all scripts executable
+
+Check the bootstrap output above for current status. If anything failed,
+re-run manually: `bash scripts/install_pkgs.sh`
+
+The only manual step each session is providing API keys (if needed):
+```bash
+bash .claude/scripts/setup-env.sh <NOCODB_URL> <TOKEN> <BASE_ID> <N8N_URL> <KEY>
+```
+
+---
+
 ## Architecture Overview
 
 ```
@@ -244,6 +265,53 @@ n8n workflows are JSON with nodes and connections arrays.
 - n8n-nodes-base.scheduleTrigger — Time-based triggers
 - n8n-nodes-base.manualTrigger — Manual execution
 - @n8n/n8n-nodes-langchain.agent — AI agents
+
+---
+
+## NocoDB as Dashboard (No-Code Option)
+
+Users may choose to use NocoDB's built-in views as their dashboard instead
+of building custom HTML. This is faster for internal tools and prototypes.
+
+### Two Dashboard Approaches:
+
+**1. NocoDB Native** — Use NocoDB views (grid, gallery, kanban, form, calendar)
+as the UI. Add button columns to trigger n8n webhooks for row-level actions.
+Configure record webhooks for automatic triggers (after insert/update/delete).
+Share views via public links for read-only dashboards.
+
+**2. Custom Frontend** — Build HTML/CSS/JS pages served via n8n webhooks.
+Full design control but requires more development effort.
+See docs/n8n-webhook-frontend.md for details.
+
+### NocoDB Button Columns → n8n
+
+Button columns let users trigger n8n workflows from within NocoDB:
+
+1. Create a webhook in NocoDB (table settings → Webhooks)
+   - Event: use "Manual Trigger" type for button-triggered webhooks
+   - Method & URL: point to your n8n webhook endpoint
+2. Add a Button column to the table
+   - Action: "Run Webhook"
+   - Select the webhook you created
+3. n8n webhook receives the record data and performs the action
+4. n8n can update the NocoDB record via API to reflect results
+
+**Limitations:**
+- Button columns don't work in shared views or shared bases
+- Conditional webhooks only fire on condition state transitions (false → true)
+- Custom webhook payloads require NocoDB Enterprise
+
+### NocoDB Record Webhooks (Automatic)
+
+Trigger n8n workflows automatically on record events:
+- After Insert / After Update / After Delete
+- After Bulk Insert / Bulk Update / Bulk Delete
+- Optional conditions: only trigger when specific fields match criteria
+
+Example n8n webhook URL: {N8N_URL}/webhook/nocodb-record-update
+
+See docs/nocodb-dashboard-patterns.md for full guide.
 
 ---
 

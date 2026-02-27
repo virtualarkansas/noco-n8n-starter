@@ -1,4 +1,10 @@
 #!/bin/bash
+# ============================================================
+# Manual fallback for starting n8n-mcp.
+# The SessionStart hook normally handles this automatically via
+# scripts/install_pkgs.sh. Use this script only if the hook
+# failed or you need to restart the server mid-session.
+# ============================================================
 # Start n8n-mcp as a local HTTP server for node documentation queries
 # Provides: search_nodes, get_node, validate_node, search_templates,
 #           get_template, validate_workflow, tools_documentation
