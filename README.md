@@ -68,14 +68,25 @@ If you have NocoDB and/or n8n credentials, provide them:
 bash .claude/scripts/setup-env.sh "NOCODB_URL" "NOCODB_TOKEN" "BASE_ID" "N8N_URL" "N8N_KEY"
 ```
 
-### 4. Start Building
+### 4. Choose Your Approach
+
+This template supports two dashboard approaches. Pick the one that fits your needs:
+
+**NocoDB Native (faster, no code)** — Use NocoDB's built-in views (grid, gallery, kanban, form, calendar) as your dashboard. Share via public links. Only requires a NocoDB instance. Best for internal tools and rapid prototyping.
+
+**Custom HTML Frontend (more flexible)** — Build HTML/CSS/JS pages served by n8n webhook nodes. Full design control. Requires both NocoDB and n8n. Best for custom apps and public-facing UIs.
+
+Not sure? Start with NocoDB Native — you can always add a custom frontend later. See `docs/getting-started.md` for a detailed comparison.
+
+### 5. Start Building
 
 Ask Claude to help you build your first project. Here are some ideas:
 
-- *"Build me a task tracker dashboard with a table and add-task form"*
+- *"Build me a task tracker using NocoDB's kanban and form views"* (native approach)
+- *"Build me a custom task dashboard with HTML served from n8n webhooks"* (custom frontend)
 - *"Create an n8n workflow that receives webhook POSTs and stores them in NocoDB"*
 - *"Set up a CRUD API proxy so my frontend can read and write NocoDB records"*
-- *"Show me how to serve an HTML page from an n8n webhook"*
+- *"Show me how NocoDB shared views and button columns work"*
 
 ## What's Included
 

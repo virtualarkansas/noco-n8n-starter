@@ -11,6 +11,32 @@ A development environment for building:
 Target audience: beginner developers. Prioritize clarity, comments, and
 step-by-step guidance in all code and explanations.
 
+### Two Dashboard Approaches — ASK BEFORE BUILDING
+
+When a user says "build me a dashboard" or similar, **always ask which
+approach they want** before writing any code:
+
+| | NocoDB Native | Custom Frontend |
+|---|---|---|
+| **What it is** | NocoDB's built-in views (grid, gallery, kanban, form, calendar) shared via public links | HTML/CSS/JS pages served by n8n webhook nodes |
+| **Complexity** | Low — configure in NocoDB UI, no code needed | High — HTML, CSS, JS, webhook routing |
+| **Flexibility** | Limited to NocoDB's view types and styling | Full control over design, layout, and UX |
+| **Setup required** | Just a NocoDB instance | NocoDB + n8n instance + webhook workflows |
+| **Best for** | Internal tools, data management, rapid prototyping | Custom apps, public-facing UIs, branded experiences |
+| **Skills learned** | Database design, view configuration | Frontend dev, API integration, webhooks |
+
+**NocoDB Native** is the faster path — students can have a working shared
+dashboard in minutes using views, forms, and button columns. No n8n needed
+for basic dashboards. Add n8n only for automations (email on submit,
+sync to other services, scheduled reports).
+
+**Custom Frontend** gives full control but requires building HTML pages,
+n8n webhook workflows, and JavaScript fetch() calls. More to learn, more
+to build, more flexibility.
+
+See the "NocoDB as Dashboard (No-Code Option)" section below for details
+on the native approach, including button columns and record webhooks.
+
 ---
 
 ## ⚠️ SECURITY RULES — ALWAYS FOLLOW

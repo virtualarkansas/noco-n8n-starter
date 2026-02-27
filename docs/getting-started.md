@@ -12,9 +12,10 @@ all powered by Claude Code.
 2. [Using This Template](#using-this-template)
 3. [Opening in Claude Code Web](#opening-in-claude-code-web)
 4. [Session Setup](#session-setup)
-5. [Your First Task: Build a Simple Dashboard](#your-first-task-build-a-simple-dashboard)
-6. [Exporting and Importing Workflows](#exporting-and-importing-workflows)
-7. [Where to Learn More](#where-to-learn-more)
+5. [Choose Your Approach](#choose-your-approach)
+6. [Your First Task: Build a Simple Dashboard](#your-first-task-build-a-simple-dashboard)
+7. [Exporting and Importing Workflows](#exporting-and-importing-workflows)
+8. [Where to Learn More](#where-to-learn-more)
 
 ---
 
@@ -155,17 +156,88 @@ bash .claude/scripts/n8n.sh health
 
 ---
 
+## Choose Your Approach
+
+Before building anything, decide which dashboard approach fits your needs.
+This template supports two fundamentally different paths:
+
+### NocoDB Native Dashboard (Faster, No Code)
+
+Use NocoDB's built-in views as your dashboard. NocoDB provides grid,
+gallery, kanban, form, and calendar views out of the box. You can share
+them via public links for read-only access.
+
+**Best for:** internal tools, data management, rapid prototyping, and
+situations where you want a working dashboard in minutes instead of hours.
+
+**What you need:** just a NocoDB instance (n8n is optional — only needed
+for automations like sending emails on form submit or syncing to other
+services).
+
+**What you get:**
+- Shared grid/kanban/gallery views via public links
+- Built-in form views for data entry
+- Button columns that trigger n8n webhooks for row-level actions
+- Record webhooks for automatic triggers (after insert/update/delete)
+
+### Custom HTML Frontend (More Flexible, More Work)
+
+Build HTML/CSS/JavaScript pages served by n8n webhook nodes. Your frontend
+calls n8n webhook endpoints via fetch(), and n8n handles the backend logic
+(reading/writing NocoDB, calling external APIs).
+
+**Best for:** custom apps, public-facing UIs, branded experiences, and
+cases where you need full control over design, layout, and interactivity.
+
+**What you need:** both NocoDB (database) and n8n (web server + backend).
+
+**What you get:**
+- Full control over HTML, CSS, and JavaScript
+- Custom layouts, charts, and interactive components
+- Any design you can build with web technologies
+
+**Not sure?** Start with NocoDB Native — you can always add a custom
+frontend later. The database and n8n workflows you build are the same
+either way.
+
+See `docs/nocodb-dashboard-patterns.md` for the full NocoDB native guide
+and `docs/n8n-webhook-frontend.md` for the custom frontend pattern.
+
+---
+
 ## Your First Task: Build a Simple Dashboard
 
 Let's build a simple task dashboard to see all the pieces working
 together. Just ask Claude!
 
-### Option A: With Live NocoDB + n8n
+### Path A: NocoDB Native Dashboard
 
-If you have both services configured:
+If you have a NocoDB instance configured:
 
 ```
-Build me a simple task dashboard:
+Build me a task tracker using NocoDB's native views:
+1. Create a "Tasks" table with columns: Name, Status (single select),
+   Priority (number), Due Date, Notes
+2. Add 5 sample tasks with different statuses
+3. Create a Kanban view grouped by Status
+4. Create a Form view for adding new tasks
+5. Show me how to share these views via public links
+```
+
+If you also have n8n and want automations:
+
+```
+Also set up an n8n workflow that triggers when a task status changes
+to "Done" — just log the record for now, and later we can add email
+notifications.
+```
+
+### Path B: Custom HTML Frontend
+
+If you have both NocoDB and n8n configured:
+
+```
+Build me a custom task dashboard:
 1. Create a "Tasks" table in NocoDB with columns: Name, Status, Priority
 2. Add 5 sample tasks
 3. Create an n8n workflow that:
@@ -175,13 +247,13 @@ Build me a simple task dashboard:
    - Include a form to create new tasks
 ```
 
-### Option B: Without Live Services (Learning Mode)
+### Path C: Learning Mode (No Live Services)
 
-If you're just exploring:
+If you're just exploring without credentials:
 
 ```
 Show me what a task dashboard workflow would look like:
-1. Search n8n-mcp for webhook and HTTP request node documentation
+1. Search the node database for webhook and HTTP request documentation
 2. Build the workflow JSON for a dashboard that serves HTML and proxies
    to a NocoDB API
 3. Save it to workflows/examples/task-dashboard.json
