@@ -1,0 +1,180 @@
+{
+  "name": "Form Submission to NocoDB",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "api/submit-form",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [400, 340],
+      "id": "webhook-form",
+      "name": "Webhook — POST /api/submit-form",
+      "webhookId": "submit-form"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-name",
+              "name": "Name",
+              "value": "={{ $json.body.Name }}",
+              "type": "string"
+            },
+            {
+              "id": "field-email",
+              "name": "Email",
+              "value": "={{ $json.body.Email }}",
+              "type": "string"
+            },
+            {
+              "id": "field-status",
+              "name": "Status",
+              "value": "={{ $json.body.Status || 'Active' }}",
+              "type": "string"
+            },
+            {
+              "id": "field-notes",
+              "name": "Notes",
+              "value": "={{ $json.body.Notes || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [640, 340],
+      "id": "set-extract-fields",
+      "name": "Extract Form Fields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.NOCODB_URL }}/api/v3/{{ $env.NOCODB_BASE_ID }}/TABLE_ID",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ Name: $json.Name, Email: $json.Email, Status: $json.Status, Notes: $json.Notes }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 340],
+      "id": "http-create-record",
+      "name": "NocoDB — Create Record"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Record created successfully', record: $json }) }}",
+        "options": {
+          "responseCode": 201
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 280],
+      "id": "respond-success",
+      "name": "Respond — Success"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'Failed to create record', details: $json.error || 'Unknown error' }) }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 460],
+      "id": "respond-error",
+      "name": "Respond — Error"
+    },
+    {
+      "parameters": {
+        "content": "## Form Submission → NocoDB\n\n**What this workflow does:**\n1. Receives a POST request with form data (JSON body)\n2. Extracts and maps the form fields\n3. Creates a new record in NocoDB via HTTP Request\n4. Returns a JSON success or error response\n\n**Setup required:**\n1. Replace `TABLE_ID` in the HTTP Request node URL\n   with your actual NocoDB table ID\n2. Set up HTTP Header Auth credentials with your\n   NocoDB API token (header: `xc-token`)\n3. Activate the workflow\n\n**Expected POST body:**\n```json\n{\n  \"Name\": \"Alice\",\n  \"Email\": \"alice@example.com\",\n  \"Status\": \"Active\",\n  \"Notes\": \"Optional notes\"\n}\n```"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [320, 60],
+      "id": "note-overview",
+      "name": "Sticky Note — Overview"
+    },
+    {
+      "parameters": {
+        "content": "## Extract & Validate Fields\n\nThe Set node maps form fields from the\nwebhook body to clean variables.\n\nThis step:\n- Extracts known fields from the POST body\n- Provides defaults (Status → 'Active')\n- Strips any extra/unexpected fields\n\nAdd validation logic here if needed\n(e.g., check for required fields)."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [580, 540],
+      "id": "note-set",
+      "name": "Sticky Note — Set Node"
+    },
+    {
+      "parameters": {
+        "content": "## NocoDB API Call\n\nThis HTTP Request node POSTs to NocoDB's\ncreate-record endpoint.\n\n**You must configure:**\n1. Replace `TABLE_ID` with your table ID\n2. Set up HTTP Header Auth credentials\n   - Header Name: `xc-token`\n   - Header Value: your NocoDB API token\n\nThe URL uses n8n environment variables:\n`$env.NOCODB_URL` and `$env.NOCODB_BASE_ID`"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [820, 540],
+      "id": "note-http",
+      "name": "Sticky Note — HTTP Request"
+    }
+  ],
+  "connections": {
+    "Webhook — POST /api/submit-form": {
+      "main": [
+        [
+          {
+            "node": "Extract Form Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Form Fields": {
+      "main": [
+        [
+          {
+            "node": "NocoDB — Create Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NocoDB — Create Record": {
+      "main": [
+        [
+          {
+            "node": "Respond — Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}

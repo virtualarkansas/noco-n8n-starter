@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  DASHBOARD PAGE — NocoFlow Starter
+  ============================================================
+  A complete, working dashboard that:
+  1. Loads records from NocoDB via an n8n webhook proxy
+  2. Displays them in a styled, responsive table
+  3. Has a "Refresh" button to reload data
+  4. Has an "Add Record" button that opens a modal form
+  5. The form submits via fetch() POST to create new records
+  6. Shows loading spinners and error messages
+
+  HOW TO USE THIS:
+  - Replace WEBHOOK_BASE_URL with your actual n8n webhook URL
+  - Create two n8n webhook endpoints:
+    GET  /api/records   → proxies to NocoDB list-records
+    POST /api/records   → proxies to NocoDB create-record
+  - Serve this HTML from a GET /dashboard webhook endpoint
+
+  n8n WORKFLOW STRUCTURE:
+  [Webhook GET /dashboard]     → [Respond with this HTML]
+  [Webhook GET /api/records]   → [HTTP Request to NocoDB] → [Respond JSON]
+  [Webhook POST /api/records]  → [HTTP Request to NocoDB] → [Respond JSON]
+  ============================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — NocoFlow</title>
+
+  <!-- Tailwind CSS from CDN — provides all utility classes -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* ---- Brand Colors ---- */
+    :root {
+      --color-primary: #4f46e5;
+      --color-primary-hover: #4338ca;
+      --color-success: #16a34a;
+      --color-error: #dc2626;
+    }
+
+    /* ---- Loading Spinner ---- */
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid #e5e7eb;
+      border-top-color: var(--color-primary);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /*
+      ---- Modal Backdrop ----
+      A semi-transparent overlay behind the modal dialog.
+      Uses CSS transition for a smooth fade-in effect.
+    */
+    .modal-backdrop {
+      background-color: rgba(0, 0, 0, 0.5);
+      transition: opacity 0.2s ease-in-out;
+    }
+
+    /*
+      ---- Toast Notification ----
+      A small message that appears at the bottom-right corner.
+      Used for success/error feedback after actions.
+    */
+    .toast {
+      transition: all 0.3s ease-in-out;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen flex flex-col">
+
+  <!-- ========== HEADER ========== -->
+  <header class="bg-indigo-600 text-white shadow-md">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <h1 class="text-xl font-bold tracking-tight">NocoFlow Dashboard</h1>
+      <nav class="flex gap-6 text-sm font-medium">
+        <a href="WEBHOOK_BASE_URL/dashboard"
+           class="hover:text-indigo-200 transition-colors">Dashboard</a>
+        <a href="WEBHOOK_BASE_URL/form"
+           class="hover:text-indigo-200 transition-colors">New Record</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ========== MAIN CONTENT ========== -->
+  <main class="flex-1 max-w-7xl mx-auto px-6 py-8 w-full">
+
+    <!--
+      TOOLBAR
+      Contains the page title and action buttons (Refresh + Add Record).
+      "flex items-center justify-between" puts the title on the left
+      and buttons on the right.
+    -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-2xl font-semibold text-gray-800">Records</h2>
+        <p class="text-sm text-gray-500 mt-1">
+          Data loaded from NocoDB via n8n webhook proxy
+        </p>
+      </div>
+
+      <div class="flex gap-3">
+        <!--
+          REFRESH BUTTON
+          Calls loadRecords() to re-fetch data from the server.
+          The id="refreshBtn" lets us disable it while loading.
+        -->
+        <button
+          id="refreshBtn"
+          onclick="loadRecords()"
+          class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm
+                 font-medium text-gray-700 hover:bg-gray-50 transition-colors
+                 flex items-center gap-2"
+        >
+          <!-- Refresh icon (inline SVG so we don't need an icon library) -->
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11
+                     11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357
+                     2H15" />
+          </svg>
+          Refresh
+        </button>
+
+        <!--
+          ADD RECORD BUTTON
+          Opens the modal form for creating a new record.
+        -->
+        <button
+          onclick="openModal()"
+          class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm
+                 font-medium hover:bg-indigo-700 transition-colors
+                 flex items-center gap-2"
+        >
+          <!-- Plus icon -->
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 4v16m8-8H4" />
+          </svg>
+          Add Record
+        </button>
+      </div>
+    </div>
+
+    <!--
+      DATA TABLE CONTAINER
+      This div is populated by JavaScript after fetching records.
+      It starts with a loading indicator.
+    -->
+    <div id="tableContainer" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <!-- Loading state — shown while data is being fetched -->
+      <div id="loadingState" class="flex items-center justify-center py-16">
+        <div class="text-center">
+          <div class="spinner mx-auto mb-3"></div>
+          <p class="text-sm text-gray-500">Loading records...</p>
+        </div>
+      </div>
+
+      <!--
+        ERROR STATE
+        Hidden by default. Shown if the API call fails.
+      -->
+      <div id="errorState" class="hidden p-8 text-center">
+        <div class="inline-flex items-center justify-center w-12 h-12
+                    rounded-full bg-red-100 mb-4">
+          <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667
+                     1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732
+                     0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+        </div>
+        <p class="text-gray-800 font-medium mb-1">Failed to load records</p>
+        <p id="errorMessage" class="text-sm text-gray-500 mb-4"></p>
+        <button
+          onclick="loadRecords()"
+          class="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+        >
+          Try again
+        </button>
+      </div>
+
+      <!--
+        EMPTY STATE
+        Shown when the API returns zero records.
+      -->
+      <div id="emptyState" class="hidden p-8 text-center">
+        <p class="text-gray-500 mb-2">No records found</p>
+        <button
+          onclick="openModal()"
+          class="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+        >
+          Create your first record
+        </button>
+      </div>
+
+      <!--
+        DATA TABLE
+        Hidden until records are loaded. The <tbody> is populated by JavaScript.
+      -->
+      <table id="dataTable" class="hidden w-full">
+        <thead>
+          <!--
+            Table header row.
+            Customize these columns to match YOUR NocoDB table fields.
+            The example uses: Name, Email, Status, Created At, Actions.
+          -->
+          <tr class="bg-gray-50 border-b border-gray-200">
+            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              Name
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              Email
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              Status
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              Created
+            </th>
+          </tr>
+        </thead>
+        <tbody id="tableBody" class="divide-y divide-gray-100">
+          <!-- Rows are inserted here by JavaScript -->
+        </tbody>
+      </table>
+    </div>
+
+    <!--
+      RECORD COUNT
+      Shows how many records are displayed.
+    -->
+    <p id="recordCount" class="hidden text-sm text-gray-500 mt-3"></p>
+
+  </main>
+
+  <!-- ========== FOOTER ========== -->
+  <footer class="bg-gray-100 border-t border-gray-200">
+    <div class="max-w-7xl mx-auto px-6 py-4 text-center text-sm text-gray-500">
+      Built with NocoDB + n8n + Claude Code
+    </div>
+  </footer>
+
+  <!--
+    ============================================================
+    MODAL — Add Record Form
+    ============================================================
+    A modal dialog that overlays the page. Hidden by default.
+    Contains a form for creating a new record.
+  -->
+  <div id="modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+    <!--
+      BACKDROP — semi-transparent dark overlay.
+      Clicking it closes the modal (onclick="closeModal()").
+    -->
+    <div class="modal-backdrop absolute inset-0" onclick="closeModal()"></div>
+
+    <!--
+      MODAL CONTENT — the white dialog box.
+      "relative z-10" keeps it above the backdrop.
+    -->
+    <div class="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+      <!-- Modal header with title and close button -->
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-lg font-semibold text-gray-800">Add New Record</h3>
+        <button
+          onclick="closeModal()"
+          class="text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <!-- X close icon -->
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!--
+        THE FORM
+        Fields should match your NocoDB table columns.
+        Customize these to match YOUR table structure.
+      -->
+      <form id="addRecordForm" onsubmit="handleSubmit(event)">
+        <!-- Name field -->
+        <div class="mb-4">
+          <label for="fieldName"
+                 class="block text-sm font-medium text-gray-700 mb-1">
+            Name <span class="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            id="fieldName"
+            name="Name"
+            required
+            placeholder="Enter name"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg
+                   text-sm focus:outline-none focus:ring-2
+                   focus:ring-indigo-500 focus:border-transparent"
+          >
+        </div>
+
+        <!-- Email field -->
+        <div class="mb-4">
+          <label for="fieldEmail"
+                 class="block text-sm font-medium text-gray-700 mb-1">
+            Email
+          </label>
+          <input
+            type="email"
+            id="fieldEmail"
+            name="Email"
+            placeholder="email@example.com"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg
+                   text-sm focus:outline-none focus:ring-2
+                   focus:ring-indigo-500 focus:border-transparent"
+          >
+        </div>
+
+        <!-- Status dropdown -->
+        <div class="mb-6">
+          <label for="fieldStatus"
+                 class="block text-sm font-medium text-gray-700 mb-1">
+            Status
+          </label>
+          <select
+            id="fieldStatus"
+            name="Status"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg
+                   text-sm focus:outline-none focus:ring-2
+                   focus:ring-indigo-500 focus:border-transparent
+                   bg-white"
+          >
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+            <option value="Pending">Pending</option>
+          </select>
+        </div>
+
+        <!-- Form actions: Cancel + Submit -->
+        <div class="flex gap-3 justify-end">
+          <button
+            type="button"
+            onclick="closeModal()"
+            class="px-4 py-2 text-sm font-medium text-gray-700
+                   bg-white border border-gray-300 rounded-lg
+                   hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            id="submitBtn"
+            class="px-4 py-2 text-sm font-medium text-white
+                   bg-indigo-600 rounded-lg hover:bg-indigo-700
+                   transition-colors flex items-center gap-2"
+          >
+            Create Record
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!--
+    ============================================================
+    JAVASCRIPT — Dashboard Logic
+    ============================================================
+    All the interactive behavior: loading data, rendering the
+    table, handling form submissions, managing the modal.
+  -->
+  <script>
+    // ==========================================================
+    // CONFIGURATION
+    // ==========================================================
+    // IMPORTANT: Replace this with your actual n8n webhook URL!
+    //
+    // This is the BASE URL for all API calls. Every fetch() call
+    // in this page builds on this URL.
+    //
+    // Cloud example:  'https://your-name.app.n8n.cloud/webhook'
+    // Local example:  'http://localhost:5678/webhook'
+    //
+    const WEBHOOK_BASE_URL = 'WEBHOOK_BASE_URL';
+
+
+    // ==========================================================
+    // STATE
+    // ==========================================================
+    // We track whether data is currently loading to prevent
+    // multiple simultaneous requests (e.g., if the user clicks
+    // Refresh twice quickly).
+    let isLoading = false;
+
+
+    // ==========================================================
+    // API HELPER
+    // ==========================================================
+    // A reusable function for making fetch() calls to our n8n
+    // webhook endpoints. Handles JSON parsing and error checking.
+    //
+    async function apiFetch(path, options = {}) {
+      const url = `${WEBHOOK_BASE_URL}${path}`;
+
+      const config = {
+        method: options.method || 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      };
+
+      if (options.body) {
+        config.body = JSON.stringify(options.body);
+      }
+
+      const response = await fetch(url, config);
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch {
+          // Response wasn't JSON
+        }
+        throw new Error(errorMessage);
+      }
+
+      return response.json();
+    }
+
+
+    // ==========================================================
+    // LOAD RECORDS
+    // ==========================================================
+    // Fetches records from the n8n webhook API endpoint and
+    // renders them into the HTML table.
+    //
+    // This function is called:
+    //   - When the page first loads (see bottom of script)
+    //   - When the user clicks "Refresh"
+    //   - After successfully creating a new record
+    //
+    async function loadRecords() {
+      // Prevent multiple simultaneous requests
+      if (isLoading) return;
+      isLoading = true;
+
+      // Get references to all the state containers
+      const loadingState = document.getElementById('loadingState');
+      const errorState = document.getElementById('errorState');
+      const emptyState = document.getElementById('emptyState');
+      const dataTable = document.getElementById('dataTable');
+      const tableBody = document.getElementById('tableBody');
+      const recordCount = document.getElementById('recordCount');
+      const refreshBtn = document.getElementById('refreshBtn');
+
+      // Show loading state, hide everything else
+      loadingState.classList.remove('hidden');
+      errorState.classList.add('hidden');
+      emptyState.classList.add('hidden');
+      dataTable.classList.add('hidden');
+      recordCount.classList.add('hidden');
+
+      // Disable the refresh button while loading
+      refreshBtn.disabled = true;
+      refreshBtn.classList.add('opacity-50');
+
+      try {
+        // ---- FETCH DATA FROM n8n WEBHOOK ----
+        // This calls: GET {WEBHOOK_BASE_URL}/api/records
+        // Your n8n workflow should proxy this to NocoDB and return the records.
+        const data = await apiFetch('/api/records');
+
+        // NocoDB returns records in a "list" array
+        // (or your n8n workflow might return them directly as an array)
+        const records = data.list || data;
+
+        // Hide loading state
+        loadingState.classList.add('hidden');
+
+        // ---- HANDLE EMPTY RESULTS ----
+        if (!records || records.length === 0) {
+          emptyState.classList.remove('hidden');
+          return;
+        }
+
+        // ---- BUILD TABLE ROWS ----
+        // Clear any existing rows
+        tableBody.innerHTML = '';
+
+        for (const record of records) {
+          // Create a new table row for each record
+          const row = document.createElement('tr');
+          row.className = 'hover:bg-gray-50 transition-colors';
+
+          // ---- STATUS BADGE COLORS ----
+          // Different colors for different status values.
+          // Customize these to match YOUR status field values.
+          const statusColors = {
+            'Active': 'bg-green-100 text-green-800',
+            'Inactive': 'bg-gray-100 text-gray-800',
+            'Pending': 'bg-yellow-100 text-yellow-800',
+          };
+          const statusClass = statusColors[record.Status] || 'bg-gray-100 text-gray-800';
+
+          // ---- FORMAT THE DATE ----
+          // NocoDB returns ISO dates like "2024-01-15T10:30:00.000Z"
+          // We format them to a human-readable string.
+          const createdDate = record.CreatedAt
+            ? new Date(record.CreatedAt).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })
+            : '—';
+
+          // ---- POPULATE THE ROW ----
+          // IMPORTANT: Use escapeHtml() to prevent XSS attacks when
+          // displaying user-generated content.
+          row.innerHTML = `
+            <td class="px-6 py-4">
+              <span class="text-sm font-medium text-gray-900">
+                ${escapeHtml(record.Name || '')}
+              </span>
+            </td>
+            <td class="px-6 py-4">
+              <span class="text-sm text-gray-600">
+                ${escapeHtml(record.Email || '—')}
+              </span>
+            </td>
+            <td class="px-6 py-4">
+              <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">
+                ${escapeHtml(record.Status || 'Unknown')}
+              </span>
+            </td>
+            <td class="px-6 py-4">
+              <span class="text-sm text-gray-500">${createdDate}</span>
+            </td>
+          `;
+
+          tableBody.appendChild(row);
+        }
+
+        // Show the table and record count
+        dataTable.classList.remove('hidden');
+        recordCount.classList.remove('hidden');
+        recordCount.textContent = `Showing ${records.length} record${records.length === 1 ? '' : 's'}`;
+
+      } catch (error) {
+        // ---- HANDLE ERRORS ----
+        // Show the error state with the error message
+        loadingState.classList.add('hidden');
+        errorState.classList.remove('hidden');
+        document.getElementById('errorMessage').textContent = error.message;
+
+        console.error('Failed to load records:', error);
+      } finally {
+        // Re-enable the refresh button
+        isLoading = false;
+        refreshBtn.disabled = false;
+        refreshBtn.classList.remove('opacity-50');
+      }
+    }
+
+
+    // ==========================================================
+    // FORM SUBMISSION
+    // ==========================================================
+    // Handles the "Add Record" form submission. Sends data to
+    // the n8n webhook POST endpoint, which creates a record in
+    // NocoDB.
+    //
+    async function handleSubmit(event) {
+      // Prevent the default form behavior (which would reload the page)
+      event.preventDefault();
+
+      const submitBtn = document.getElementById('submitBtn');
+      const form = document.getElementById('addRecordForm');
+
+      // Disable the submit button and show a loading state
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `
+        <div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>
+        Creating...
+      `;
+
+      // ---- GATHER FORM DATA ----
+      // Read values from the form fields.
+      // Customize these field names to match YOUR NocoDB table columns.
+      const formData = {
+        Name: document.getElementById('fieldName').value.trim(),
+        Email: document.getElementById('fieldEmail').value.trim(),
+        Status: document.getElementById('fieldStatus').value,
+      };
+
+      try {
+        // ---- SEND TO n8n WEBHOOK ----
+        // This calls: POST {WEBHOOK_BASE_URL}/api/records
+        // Your n8n workflow should forward this to NocoDB's create endpoint.
+        await apiFetch('/api/records', {
+          method: 'POST',
+          body: formData,
+        });
+
+        // ---- SUCCESS! ----
+        showToast('Record created successfully!', 'success');
+
+        // Close the modal and reset the form
+        closeModal();
+        form.reset();
+
+        // Refresh the table to show the new record
+        await loadRecords();
+
+      } catch (error) {
+        // ---- HANDLE ERROR ----
+        showToast(`Failed to create record: ${error.message}`, 'error');
+        console.error('Failed to create record:', error);
+      } finally {
+        // Re-enable the submit button
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Create Record';
+      }
+    }
+
+
+    // ==========================================================
+    // MODAL CONTROLS
+    // ==========================================================
+    // Functions to open and close the "Add Record" modal dialog.
+    //
+    function openModal() {
+      document.getElementById('modal').classList.remove('hidden');
+      // Focus the first field for better UX
+      document.getElementById('fieldName').focus();
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.add('hidden');
+      // Reset the form when closing
+      document.getElementById('addRecordForm').reset();
+    }
+
+
+    // ==========================================================
+    // UTILITY FUNCTIONS
+    // ==========================================================
+
+    // ---- Escape HTML ----
+    // Prevents XSS (Cross-Site Scripting) attacks by converting
+    // special characters to their HTML entities.
+    // ALWAYS use this when displaying user-generated content!
+    //
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ---- Toast Notification ----
+    // Shows a small message at the bottom-right of the screen.
+    //
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      const colors = {
+        success: 'bg-green-600',
+        error: 'bg-red-600',
+        warning: 'bg-yellow-600',
+        info: 'bg-indigo-600',
+      };
+      toast.className = `
+        toast fixed bottom-6 right-6 z-50
+        ${colors[type] || colors.info} text-white
+        px-5 py-3 rounded-lg shadow-lg
+        text-sm font-medium
+      `;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+
+    // ==========================================================
+    // KEYBOARD SHORTCUTS
+    // ==========================================================
+    // Close modal on Escape key press — better UX
+    //
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        closeModal();
+      }
+    });
+
+
+    // ==========================================================
+    // INITIALIZE
+    // ==========================================================
+    // Load records when the page first opens.
+    //
+    loadRecords();
+  </script>
+
+</body>
+</html>

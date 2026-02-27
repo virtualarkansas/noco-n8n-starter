@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Environment (NEVER commit secrets)
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+build/
+*.js.map
+
+# n8n-mcp server (legacy)
+*.pid
+/tmp/
+
+# n8n-mcp database (downloaded each session by install_pkgs.sh)
+data/nodes.db
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# n8n custom nodes build
+n8n-nodes/dist/
+
+# Temporary skill downloads
+/tmp/n8n-skills/
+
+# n8n-skills (downloaded fresh each session by install_pkgs.sh)
+.claude/skills/

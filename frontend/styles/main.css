@@ -1,0 +1,250 @@
+/*
+  ============================================================
+  NocoFlow Starter — Supplemental CSS
+  ============================================================
+  This file provides styles that Tailwind doesn't cover:
+  - CSS custom properties (brand colors)
+  - Loading spinner animation
+  - Toast notification styles
+  - Modal backdrop
+
+  NOTE: When serving pages via n8n webhooks, you'll typically
+  inline these styles in a <style> tag rather than linking this
+  file (since relative URLs are unreliable in the iframe sandbox).
+  This file exists as a reference — copy what you need.
+  ============================================================
+*/
+
+
+/* ==========================================================
+   CSS CUSTOM PROPERTIES (Brand Colors)
+   ==========================================================
+   Define your brand colors as CSS variables. This makes it
+   easy to change the color scheme in one place.
+
+   Usage in CSS:
+     background-color: var(--color-primary);
+     color: var(--color-error);
+
+   These complement Tailwind's utility classes — use them for
+   custom components that Tailwind classes don't cover.
+   ========================================================== */
+:root {
+  /* Primary brand color (indigo) */
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
+  --color-primary-light: #e0e7ff;
+
+  /* Semantic colors */
+  --color-success: #16a34a;
+  --color-success-light: #dcfce7;
+  --color-error: #dc2626;
+  --color-error-light: #fef2f2;
+  --color-warning: #d97706;
+  --color-warning-light: #fef3c7;
+  --color-info: #2563eb;
+  --color-info-light: #dbeafe;
+
+  /* Neutral colors */
+  --color-text: #1f2937;
+  --color-text-muted: #6b7280;
+  --color-border: #e5e7eb;
+  --color-background: #f9fafb;
+}
+
+
+/* ==========================================================
+   LOADING SPINNER
+   ==========================================================
+   A circular spinning indicator, shown while data is loading.
+
+   Usage:
+     <div class="spinner"></div>
+
+   Customize size with inline styles or modifier classes:
+     <div class="spinner spinner-sm"></div>
+     <div class="spinner spinner-lg"></div>
+   ========================================================== */
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+/* Small spinner — for inside buttons */
+.spinner-sm {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}
+
+/* Large spinner — for full-page loading states */
+.spinner-lg {
+  width: 40px;
+  height: 40px;
+  border-width: 4px;
+}
+
+/* The rotation animation */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* ==========================================================
+   TOAST NOTIFICATIONS
+   ==========================================================
+   Small notification messages that appear at the bottom-right
+   corner of the screen and automatically disappear.
+
+   Usage (via JavaScript):
+     showToast('Record created!', 'success');
+
+   The JavaScript creates these elements dynamically. These
+   styles define their appearance and animation.
+   ========================================================== */
+
+/* Base toast styles */
+.toast {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 50;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+              0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  /* Smooth entrance and exit animations */
+  transition: all 0.3s ease-in-out;
+  /* Start invisible and slide up */
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Toast color variants */
+.toast-success {
+  background-color: var(--color-success);
+}
+
+.toast-error {
+  background-color: var(--color-error);
+}
+
+.toast-warning {
+  background-color: var(--color-warning);
+}
+
+.toast-info {
+  background-color: var(--color-info);
+}
+
+/* Fade-out state (applied by JavaScript before removal) */
+.toast-exit {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+
+/* ==========================================================
+   MODAL BACKDROP
+   ==========================================================
+   A semi-transparent overlay that appears behind modal dialogs.
+   Dims the rest of the page to focus attention on the modal.
+
+   Usage:
+     <div class="modal-backdrop">
+       <div class="modal-content">...</div>
+     </div>
+   ========================================================== */
+
+/* The dark overlay covering the entire screen */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 40;
+  /* Smooth fade-in */
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* The modal dialog itself */
+.modal-content {
+  position: relative;
+  z-index: 50;
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-width: 28rem;
+  width: calc(100% - 2rem);
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+
+/* ==========================================================
+   FORM FIELD VALIDATION STYLES
+   ==========================================================
+   Visual indicators for form validation errors.
+   Applied by JavaScript when validation fails.
+   ========================================================== */
+
+/* Red border on fields with errors */
+.field-error {
+  border-color: var(--color-error) !important;
+  box-shadow: 0 0 0 1px var(--color-error);
+}
+
+/* Error message text below fields */
+.field-error-message {
+  color: var(--color-error);
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+
+/* ==========================================================
+   STATUS BADGES
+   ==========================================================
+   Colored pills for displaying record statuses in tables.
+   Complement Tailwind's utility classes with semantic names.
+
+   Usage:
+     <span class="badge badge-active">Active</span>
+     <span class="badge badge-pending">Pending</span>
+   ========================================================== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.badge-active {
+  background-color: var(--color-success-light);
+  color: #166534;
+}
+
+.badge-pending {
+  background-color: var(--color-warning-light);
+  color: #92400e;
+}
+
+.badge-inactive {
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+.badge-error {
+  background-color: var(--color-error-light);
+  color: #991b1b;
+}

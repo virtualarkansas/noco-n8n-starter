@@ -1,0 +1,131 @@
+{
+  "name": "NocoDB Button Webhook Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nocodb-button-action",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-1111-4000-a000-000000000001",
+      "name": "Webhook — NocoDB Button",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "nocodb-button-action"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract record data from NocoDB webhook payload\n// NocoDB sends different payload shapes depending on the event type.\n// Button columns use the \"Manual Trigger\" webhook, which sends\n// the record(s) that were selected when the button was clicked.\n\nconst body = $input.first().json.body;\n\n// The payload structure from NocoDB webhooks:\n// {\n//   \"type\": \"records.after.update\",\n//   \"id\": \"unique-event-id\",\n//   \"data\": {\n//     \"table_id\": \"md_xxx\",\n//     \"table_name\": \"Tasks\",\n//     \"view_id\": \"vw_xxx\",\n//     \"view_name\": \"Tasks\",\n//     \"records\": [{ \"Id\": 1, \"Title\": \"Example\", \"Status\": \"Pending\" }]\n//   }\n// }\n\nconst eventType = body.type || 'unknown';\nconst tableId = body.data?.table_id || '';\nconst tableName = body.data?.table_name || '';\nconst records = body.data?.records || body.data?.rows || [];\n\n// Get the first record (button clicks typically affect one row)\nconst record = records[0] || {};\nconst recordId = record.Id || record.id || null;\n\nreturn [{\n  json: {\n    eventType,\n    tableId,\n    tableName,\n    recordId,\n    record,\n    // Add your custom logic here:\n    // - Determine action based on button/webhook name\n    // - Validate the record before processing\n    // - Set the new status or values\n    newStatus: 'Processed'\n  }\n}];"
+      },
+      "id": "a1b2c3d4-2222-4000-a000-000000000002",
+      "name": "Extract Record Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.NOCODB_URL }}/api/v3/{{ $env.NOCODB_BASE_ID }}/{{ $json.tableId }}/{{ $json.recordId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xc-token",
+              "value": "={{ $env.NOCODB_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ Status: $json.newStatus }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-3333-4000-a000-000000000003",
+      "name": "Update NocoDB Record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, recordId: $('Extract Record Data').first().json.recordId, newStatus: $('Extract Record Data').first().json.newStatus }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-4444-4000-a000-000000000004",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "content": "## NocoDB Button Column → n8n Webhook\n\nThis workflow handles POST requests from NocoDB button columns.\n\n### How to connect this to NocoDB:\n\n1. **Create a webhook in NocoDB:**\n   - Go to your table → toolbar → Details → Webhooks\n   - Click \"Create Webhook\"\n   - Event: After Update (or Manual Trigger)\n   - URL: `https://your-n8n.app.n8n.cloud/webhook/nocodb-button-action`\n\n2. **Add a Button column to your table:**\n   - Create new field → type \"Button\"\n   - Action: \"Run Webhook\"\n   - Select the webhook from step 1\n\n3. **Activate this workflow** and click the button in NocoDB!\n\n### Customize:\n- Change the Code node logic for your specific action\n- Change the HTTP Request to update different fields\n- Add more nodes (send email, Slack notification, etc.)",
+        "width": 420,
+        "height": 420
+      },
+      "id": "a1b2c3d4-5555-4000-a000-000000000005",
+      "name": "Setup Instructions",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, -180]
+    },
+    {
+      "parameters": {
+        "content": "## NocoDB Webhook Payload\n\n```json\n{\n  \"type\": \"records.after.update\",\n  \"id\": \"unique-event-id\",\n  \"data\": {\n    \"table_id\": \"md_xxx\",\n    \"table_name\": \"Tasks\",\n    \"view_id\": \"vw_xxx\",\n    \"view_name\": \"Tasks\",\n    \"records\": [\n      {\n        \"Id\": 1,\n        \"Title\": \"Example\",\n        \"Status\": \"Pending\"\n      }\n    ]\n  }\n}\n```\n\nThe payload includes the full record data.\nUse the Code node to extract what you need.",
+        "width": 380,
+        "height": 380
+      },
+      "id": "a1b2c3d4-6666-4000-a000-000000000006",
+      "name": "Payload Reference",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [640, -180]
+    }
+  ],
+  "connections": {
+    "Webhook — NocoDB Button": {
+      "main": [
+        [
+          {
+            "node": "Extract Record Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Record Data": {
+      "main": [
+        [
+          {
+            "node": "Update NocoDB Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update NocoDB Record": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0
+}
