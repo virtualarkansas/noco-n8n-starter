@@ -1,0 +1,350 @@
+{
+  "name": "NocoDB CRUD API Proxy",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "={{$parameter[\"httpMethod\"]}}",
+        "path": "api/records",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedMethods": "GET,POST,PATCH,DELETE"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [380, 440],
+      "id": "webhook-crud",
+      "name": "Webhook — /api/records",
+      "webhookId": "api-records"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "outputKey": "GET",
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.headers['method'] || $input.first().json.method }}",
+                    "rightValue": "GET",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "POST",
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.headers['method'] || $input.first().json.method }}",
+                    "rightValue": "POST",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "PATCH",
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.headers['method'] || $input.first().json.method }}",
+                    "rightValue": "PATCH",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "DELETE",
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.headers['method'] || $input.first().json.method }}",
+                    "rightValue": "DELETE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [620, 440],
+      "id": "switch-method",
+      "name": "Route by HTTP Method"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.NOCODB_URL }}/api/v3/{{ $env.NOCODB_BASE_ID }}/TABLE_ID",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "={{ $json.query.limit || '25' }}"
+            },
+            {
+              "name": "offset",
+              "value": "={{ $json.query.offset || '0' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 200],
+      "id": "http-list",
+      "name": "NocoDB — List Records"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.NOCODB_URL }}/api/v3/{{ $env.NOCODB_BASE_ID }}/TABLE_ID",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 380],
+      "id": "http-create",
+      "name": "NocoDB — Create Record"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.NOCODB_URL }}/api/v3/{{ $env.NOCODB_BASE_ID }}/TABLE_ID/{{ $json.query.id || $json.body.Id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 560],
+      "id": "http-update",
+      "name": "NocoDB — Update Record"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ $env.NOCODB_URL }}/api/v3/{{ $env.NOCODB_BASE_ID }}/TABLE_ID/{{ $json.query.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 740],
+      "id": "http-delete",
+      "name": "NocoDB — Delete Record"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1140, 200],
+      "id": "respond-list",
+      "name": "Respond — List"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, record: $json }) }}",
+        "options": {
+          "responseCode": 201
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1140, 380],
+      "id": "respond-create",
+      "name": "Respond — Created"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, record: $json }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1140, 560],
+      "id": "respond-update",
+      "name": "Respond — Updated"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Record deleted' }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1140, 740],
+      "id": "respond-delete",
+      "name": "Respond — Deleted"
+    },
+    {
+      "parameters": {
+        "content": "## NocoDB CRUD API Proxy\n\n**What this workflow does:**\nProvides a single webhook endpoint that proxies all\nCRUD (Create, Read, Update, Delete) operations to NocoDB.\n\n**Endpoint:** `/webhook/api/records`\n\n**Supported operations:**\n- `GET /api/records` → List records\n- `GET /api/records?limit=10&offset=0` → Paginated list\n- `POST /api/records` → Create (body = record JSON)\n- `PATCH /api/records?id=123` → Update (body = fields to update)\n- `DELETE /api/records?id=123` → Delete\n\n**Setup required:**\n1. Replace all `TABLE_ID` placeholders with your table ID\n2. Set up HTTP Header Auth credentials:\n   - Header Name: `xc-token`\n   - Header Value: your NocoDB API token\n3. Set n8n environment variables:\n   - `NOCODB_URL`: your NocoDB instance URL\n   - `NOCODB_BASE_ID`: your base ID (starts with 'p')\n4. Activate the workflow"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [280, 60],
+      "id": "note-overview",
+      "name": "Sticky Note — Overview"
+    },
+    {
+      "parameters": {
+        "content": "## Method Router\n\nThe Switch node checks the HTTP method\nof the incoming request and routes to\nthe correct branch:\n\n- Output 0 → GET (list records)\n- Output 1 → POST (create record)\n- Output 2 → PATCH (update record)\n- Output 3 → DELETE (delete record)\n\nThis pattern lets you serve a full\nREST API from a single webhook URL."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [560, 640],
+      "id": "note-switch",
+      "name": "Sticky Note — Switch"
+    },
+    {
+      "parameters": {
+        "content": "## NocoDB HTTP Requests\n\nEach branch makes the corresponding\nHTTP request to NocoDB's REST API:\n\n- **List:** GET with limit/offset params\n- **Create:** POST with JSON body\n- **Update:** PATCH with record ID in URL\n- **Delete:** DELETE with record ID in URL\n\nAll use HTTP Header Auth credentials\nfor the NocoDB API token."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [820, 900],
+      "id": "note-http",
+      "name": "Sticky Note — HTTP Requests"
+    }
+  ],
+  "connections": {
+    "Webhook — /api/records": {
+      "main": [
+        [
+          {
+            "node": "Route by HTTP Method",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by HTTP Method": {
+      "main": [
+        [
+          {
+            "node": "NocoDB — List Records",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NocoDB — Create Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NocoDB — Update Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NocoDB — Delete Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NocoDB — List Records": {
+      "main": [
+        [
+          {
+            "node": "Respond — List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NocoDB — Create Record": {
+      "main": [
+        [
+          {
+            "node": "Respond — Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NocoDB — Update Record": {
+      "main": [
+        [
+          {
+            "node": "Respond — Updated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NocoDB — Delete Record": {
+      "main": [
+        [
+          {
+            "node": "Respond — Deleted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}

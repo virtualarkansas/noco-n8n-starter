@@ -1,0 +1,68 @@
+{
+  "name": "Serve Dashboard HTML",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "dashboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [480, 300],
+      "id": "webhook-dashboard",
+      "name": "Webhook — GET /dashboard",
+      "webhookId": "dashboard"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Dashboard — NocoFlow</title>\n  <script src=\"https://cdn.tailwindcss.com\"></script>\n</head>\n<body class=\"bg-gray-50 min-h-screen\">\n  <header class=\"bg-indigo-600 text-white shadow-md\">\n    <div class=\"max-w-7xl mx-auto px-6 py-4\">\n      <h1 class=\"text-xl font-bold\">NocoFlow Dashboard</h1>\n    </div>\n  </header>\n  <main class=\"max-w-7xl mx-auto px-6 py-8\">\n    <div class=\"bg-white rounded-xl shadow-sm border border-gray-200 p-8\">\n      <h2 class=\"text-2xl font-semibold text-gray-800 mb-4\">It works!</h2>\n      <p class=\"text-gray-600 mb-4\">\n        This page is served by an n8n Webhook node. Replace this\n        placeholder with your full dashboard HTML.\n      </p>\n      <p class=\"text-sm text-gray-500\">\n        See <code class=\"bg-gray-100 px-1.5 py-0.5 rounded\">frontend/templates/dashboard.html</code>\n        for a complete example with data loading, tables, and forms.\n      </p>\n    </div>\n  </main>\n  <footer class=\"bg-gray-100 border-t border-gray-200 mt-auto\">\n    <div class=\"max-w-7xl mx-auto px-6 py-4 text-center text-sm text-gray-500\">\n      Built with NocoDB + n8n + Claude Code\n    </div>\n  </footer>\n</body>\n</html>",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 300],
+      "id": "respond-html",
+      "name": "Respond — HTML Page"
+    },
+    {
+      "parameters": {
+        "content": "## Serve Dashboard HTML\n\n**What this workflow does:**\n1. Listens for GET requests at `/webhook/dashboard`\n2. Responds with an HTML page (Content-Type: text/html)\n\n**How to use:**\n1. Activate this workflow\n2. Visit: `{your-n8n-url}/webhook/dashboard`\n3. You should see the HTML page in your browser\n\n**To customize:**\n- Replace the HTML in the \"Respond\" node with your own\n- See `frontend/templates/dashboard.html` for a full example\n- For dynamic data, add nodes between Webhook and Respond\n  to fetch data from NocoDB, then inject it into the HTML"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [400, 80],
+      "id": "note-overview",
+      "name": "Sticky Note — Overview"
+    }
+  ],
+  "connections": {
+    "Webhook — GET /dashboard": {
+      "main": [
+        [
+          {
+            "node": "Respond — HTML Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}
