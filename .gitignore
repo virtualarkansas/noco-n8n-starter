@@ -36,4 +36,7 @@ n8n-nodes/dist/
 /tmp/n8n-skills/
 
 # n8n-skills (downloaded fresh each session by install_pkgs.sh)
-.claude/skills/
+# Ignore all skill subdirectories, then un-ignore the ones we keep
+.claude/skills/*
+!.claude/skills/README.md
+!.claude/skills/frontend-design/
