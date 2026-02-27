@@ -31,3 +31,6 @@ n8n-nodes/dist/
 
 # Temporary skill downloads
 /tmp/n8n-skills/
+
+# n8n-skills (downloaded fresh each session by install_pkgs.sh)
+.claude/skills/
