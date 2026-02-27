@@ -129,33 +129,35 @@ After configuring, activate the workflow:
 
 ## Validating Modified Workflows
 
-After customizing a workflow, validate it using the n8n-mcp server:
+After customizing a workflow, look up node documentation to verify your
+configuration is correct:
 
 ```bash
-# Start the MCP server (if not already running):
-bash .claude/scripts/start-mcp.sh
+# Check node properties/parameter schema:
+bash .claude/scripts/mcp.sh props n8n-nodes-base.httpRequest
 
-# Validate a complete workflow:
-bash .claude/scripts/mcp.sh validate_workflow "{\"workflow\": $(cat workflows/examples/serve-dashboard.json)}"
+# Check node operations:
+bash .claude/scripts/mcp.sh ops n8n-nodes-base.httpRequest
 
-# Validate individual node configurations:
-bash .claude/scripts/mcp.sh validate_node '{"nodeType":"n8n-nodes-base.httpRequest","config":{"method":"POST","url":"..."},"mode":"full"}'
+# Get full documentation for a node:
+bash .claude/scripts/mcp.sh get n8n-nodes-base.webhook
 ```
 
-This catches configuration errors before you deploy.
+This helps catch configuration errors before you deploy.
 
 ---
 
 ## Creating Your Own Workflows
 
-1. **Search templates first** — there are 2,709 available:
+1. **Search templates first** — there are 2,737 available:
    ```bash
-   bash .claude/scripts/mcp.sh search_templates '{"query":"your use case"}'
+   bash .claude/scripts/mcp.sh templates "your use case"
    ```
 
 2. **Look up node documentation** before configuring any node:
    ```bash
-   bash .claude/scripts/mcp.sh get_node '{"nodeType":"n8n-nodes-base.webhook","detail":"standard","includeExamples":true}'
+   bash .claude/scripts/mcp.sh get n8n-nodes-base.webhook
+   bash .claude/scripts/mcp.sh props n8n-nodes-base.webhook
    ```
 
 3. **Save your workflows** to this directory for version control:

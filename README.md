@@ -15,7 +15,7 @@ This is a GitHub template repository. Click **"Use this template"** to create yo
 
 The template provides a complete development environment for building web dashboards backed by NocoDB (an open-source database with a spreadsheet UI) and automated with n8n (a workflow automation platform). Your frontend is plain HTML/CSS/JavaScript served directly by n8n webhook nodes, NocoDB stores your data, and n8n handles all the backend logic — fetching records, processing form submissions, calling external APIs, and more.
 
-Everything here is designed for Claude Code Web at [claude.ai/code](https://claude.ai/code). The project includes [n8n-mcp](https://github.com/czlonkowski/n8n-mcp) integration for intelligent workflow building (1,084 nodes, 2,709 templates), [n8n-skills](https://github.com/czlonkowski/n8n-skills) for correct expression syntax and workflow patterns, wrapper scripts that keep your API tokens safe, and thorough documentation written for beginners. You describe what you want to build, and Claude handles the rest — looking up the right nodes, validating configurations, generating workflow JSON, and deploying to your n8n instance.
+Everything here is designed for Claude Code Web at [claude.ai/code](https://claude.ai/code). The project includes a pre-built [n8n-mcp](https://github.com/czlonkowski/n8n-mcp) SQLite database with all n8n node docs (1,236 nodes, 2,737 templates), [n8n-skills](https://github.com/czlonkowski/n8n-skills) for correct expression syntax and workflow patterns, wrapper scripts that keep your API tokens safe, and thorough documentation written for beginners. You describe what you want to build, and Claude handles the rest — looking up the right nodes, checking property schemas, generating workflow JSON, and deploying to your n8n instance.
 
 ## Architecture
 
@@ -56,24 +56,13 @@ Click the green **"Use this template"** button at the top of this repository, th
 
 Go to [claude.ai/code](https://claude.ai/code) and start a remote session connected to your new repository.
 
-### 3. Set Up Your Session
+### 3. Session Starts Automatically
 
-Paste this into Claude Code to initialize the development environment:
+When you open the repo in Claude Code Web, the SessionStart hook runs
+automatically. It downloads the n8n node database (`data/nodes.db`),
+n8n-skills, and makes all scripts executable. No manual setup needed.
 
-```
-Download n8n-skills for workflow pattern guidance, start the n8n-mcp
-documentation server, and make the wrapper scripts executable:
-
-git clone https://github.com/czlonkowski/n8n-skills.git /tmp/n8n-skills
-mkdir -p .claude/skills
-cp /tmp/n8n-skills/dist/*.md .claude/skills/
-rm -rf /tmp/n8n-skills
-
-chmod +x .claude/scripts/*.sh
-bash .claude/scripts/start-mcp.sh
-```
-
-If you have NocoDB and/or n8n credentials, also run:
+If you have NocoDB and/or n8n credentials, provide them:
 
 ```
 bash .claude/scripts/setup-env.sh "NOCODB_URL" "NOCODB_TOKEN" "BASE_ID" "N8N_URL" "N8N_KEY"
@@ -95,9 +84,7 @@ Ask Claude to help you build your first project. Here are some ideas:
 | Script | Purpose |
 |--------|---------|
 | `setup-env.sh` | Writes API credentials to `.env` from positional arguments |
-| `start-mcp.sh` | Starts the n8n-mcp documentation server on port 3001 |
-| `stop-mcp.sh` | Stops the n8n-mcp server |
-| `mcp.sh` | Queries n8n-mcp for node docs, templates, and validation |
+| `mcp.sh` | Queries n8n node database (nodes.db) for docs, templates, and properties via sqlite3 |
 | `noco.sh` | NocoDB REST API wrapper (list, create, update, delete records) |
 | `n8n.sh` | n8n REST API wrapper (manage workflows, executions) |
 
@@ -148,32 +135,21 @@ When you open this project in Claude Code Web, four layers work together to give
 
 **Layer 2: n8n-skills** are markdown files in `.claude/skills/` that teach Claude correct n8n expression syntax, workflow patterns, validation techniques, and Code node usage. They activate automatically when Claude detects relevant context — for example, when you ask it to build a workflow with expressions, the expression syntax skill kicks in.
 
-**Layer 3: n8n-mcp** is a local HTTP server (port 3001) that provides searchable access to documentation for 1,084 n8n nodes and 2,709 real-world workflow templates. Claude queries it via the `mcp.sh` wrapper script to look up node configurations, find matching templates, and validate workflows before deployment.
+**Layer 3: n8n node database** (`data/nodes.db`) is a pre-built SQLite file containing documentation for 1,236 n8n nodes and 2,737 real-world workflow templates. Claude queries it via the `mcp.sh` wrapper script (which runs sqlite3 directly) to look up node configurations, find matching templates, and check property schemas before building workflows.
 
 **Layer 4: Wrapper scripts** in `.claude/scripts/` give Claude safe access to your NocoDB and n8n APIs. They read tokens from `.env` internally, so Claude never sees or handles your raw API keys. Claude calls the scripts; the scripts handle authentication.
 
-**Important:** Claude Code Web containers are ephemeral. Your code is persisted in your GitHub repository, but the local environment (n8n-mcp server, skills files, `.env` credentials) resets each session. Run the setup commands from [Session Setup](#session-setup-repeat-each-time) at the start of each new session.
+**Important:** Claude Code Web containers are ephemeral. Your code is persisted in your GitHub repository, but the local environment (node database, skills files, `.env` credentials) resets each session. The SessionStart hook re-downloads everything automatically when you open the repo.
 
 ## Session Setup (Repeat Each Time)
 
-Copy and paste this block at the start of each Claude Code Web session:
+The SessionStart hook handles setup automatically when you open the repo in Claude Code Web. It downloads the node database (`data/nodes.db`), n8n-skills, and makes scripts executable.
+
+The only manual step is providing API credentials (if you have them):
 
 ```
-Set up the development environment:
-
-git clone https://github.com/czlonkowski/n8n-skills.git /tmp/n8n-skills
-mkdir -p .claude/skills
-cp /tmp/n8n-skills/dist/*.md .claude/skills/
-rm -rf /tmp/n8n-skills
-
-chmod +x .claude/scripts/*.sh
-bash .claude/scripts/start-mcp.sh
-
-# Only if you have credentials:
-# bash .claude/scripts/setup-env.sh "NOCODB_URL" "TOKEN" "BASE_ID" "N8N_URL" "API_KEY"
+bash .claude/scripts/setup-env.sh "NOCODB_URL" "TOKEN" "BASE_ID" "N8N_URL" "API_KEY"
 ```
-
-This downloads the latest n8n-skills, starts the n8n-mcp documentation server, and optionally configures your API credentials.
 
 ## Security
 
@@ -200,7 +176,7 @@ This template takes a defense-in-depth approach to credential safety:
 - [Node Reference](https://docs.n8n.io/integrations/)
 - [Community Forum](https://community.n8n.io/)
 
-**n8n-mcp** — Node documentation and workflow validation server
+**n8n-mcp** — Node documentation database (queried via sqlite3)
 - [GitHub](https://github.com/czlonkowski/n8n-mcp)
 
 **n8n-skills** — Workflow pattern guidance for AI assistants

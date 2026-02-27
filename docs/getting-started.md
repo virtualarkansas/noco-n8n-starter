@@ -36,7 +36,7 @@ all powered by Claude Code.
 
 **You don't need NocoDB or n8n to get started!** This template works
 without them — you can build and test workflow JSON files, learn the
-APIs, and explore node documentation using the built-in n8n-mcp server.
+APIs, and explore node documentation using the built-in node database.
 When you're ready to go live, add your API credentials.
 
 ---
@@ -102,19 +102,23 @@ Claude should see:
 Each time you start a new Claude Code Web session, run through this
 setup sequence. You can ask Claude to do it for you!
 
-### Step 1: Start the n8n-mcp Server
+### Step 1: Verify the Node Database
+
+The SessionStart hook automatically downloads the n8n node database
+(`data/nodes.db`) when you open the repo. You can verify it's ready:
 
 ```
-Please start the n8n-mcp server so we can look up node documentation.
+Can you check that the node database is available?
 ```
 
 Claude will run:
 ```bash
-bash .claude/scripts/start-mcp.sh
+bash .claude/scripts/mcp.sh stats
 ```
 
-This starts a local server with documentation for 1,084 n8n nodes and
-2,709 workflow templates.
+This shows statistics for the SQLite database containing 1,236 n8n node
+docs and 2,737 workflow templates. No server needed — queries run directly
+via sqlite3.
 
 ### Step 2: Configure API Keys (Optional)
 
@@ -186,12 +190,11 @@ Show me what a task dashboard workflow would look like:
 
 ### What Claude Will Do
 
-1. **Search templates** — Check if a similar workflow already exists
-2. **Look up nodes** — Get correct configuration for each node type
+1. **Search templates** — Check if a similar workflow already exists in the database
+2. **Look up nodes** — Get correct configuration for each node type via sqlite3
 3. **Build the workflow** — Create valid JSON with proper connections
-4. **Validate** — Run the workflow through n8n-mcp validation
-5. **Deploy** — Push to n8n (if configured) and activate
-6. **Test** — Verify the webhook responds correctly
+4. **Deploy** — Push to n8n (if configured) and activate
+5. **Test** — Verify the webhook responds correctly
 
 ---
 
@@ -255,11 +258,11 @@ bash .claude/scripts/n8n.sh activate <new-id>
 - **Community:** https://community.n8n.io/
 - **In this project:** See `docs/n8n-api-guide.md`
 
-### n8n-mcp (Node Documentation Server)
+### n8n-mcp (Node Documentation Database)
 
-- **GitHub:** https://github.com/nicholasgriffintn/n8n-mcp
+- **GitHub:** https://github.com/czlonkowski/n8n-mcp
 - **Usage in this project:** See the "Available Tools" section in `CLAUDE.md`
-- **Start it:** `bash .claude/scripts/start-mcp.sh`
+- **Query it:** `bash .claude/scripts/mcp.sh search <query>`
 
 ### n8n-skills (Specialized Development Skills)
 

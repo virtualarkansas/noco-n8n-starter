@@ -179,8 +179,8 @@ During Development (with Claude Code):
        ├── bash .claude/scripts/n8n.sh list-workflows
        │   └── Reads .env → calls n8n API → shows workflows
        │
-       └── bash .claude/scripts/mcp.sh search_nodes '{"query":"webhook"}'
-           └── Queries local n8n-mcp server → returns node documentation
+       └── bash .claude/scripts/mcp.sh search webhook
+           └── Queries nodes.db via sqlite3 → returns node documentation
 ```
 
 **Why wrapper scripts?**
@@ -195,11 +195,11 @@ proper n8n credentials.
 
 ---
 
-## The Knowledge Layer: n8n-mcp
+## The Knowledge Layer: n8n Node Database
 
-The n8n-mcp server (started with `bash .claude/scripts/start-mcp.sh`) is a
-local reference database containing documentation for 1,084 n8n nodes and
-2,646 real-world template configurations.
+The n8n node database (`data/nodes.db`) is a pre-built SQLite file containing
+documentation for 1,236 n8n nodes and 2,737 real-world template configurations.
+It's downloaded automatically by the SessionStart hook — no server needed.
 
 ```
 Building a Workflow:
@@ -207,27 +207,24 @@ Building a Workflow:
   You describe what you want
        │
        ▼
-  Claude searches n8n-mcp for:
-  ├── Matching templates (2,709 available)
+  Claude queries nodes.db for:
+  ├── Matching templates (2,737 available)
   ├── Node documentation
   └── Configuration examples
        │
        ▼
   Claude builds workflow JSON using:
   ├── Correct node types
-  ├── Validated configurations
+  ├── Property schemas from the database
   └── Real-world patterns
-       │
-       ▼
-  Workflow validated via n8n-mcp
        │
        ▼
   Deployed to n8n via wrapper script
 ```
 
 **Why this matters:** n8n node types and their configurations are complex.
-Without n8n-mcp, it's easy to use wrong parameter names, miss required
-fields, or build workflows that fail at runtime. The n8n-mcp server
+Without the node database, it's easy to use wrong parameter names, miss
+required fields, or build workflows that fail at runtime. The database
 provides the knowledge needed to build correct workflows the first time.
 
 ---
@@ -239,8 +236,8 @@ provides the knowledge needed to build correct workflows the first time.
 | NocoDB | Database (stores data) | Via `noco.sh` wrapper script |
 | n8n | Web server + backend logic | Via `n8n.sh` wrapper script |
 | Frontend | User interface (HTML/JS) | Creates files directly |
-| n8n-mcp | Node docs + validation | Via `mcp.sh` wrapper script |
+| n8n node database | Node docs + templates | Via `mcp.sh` wrapper script (sqlite3 queries) |
 
 The flow is always: **User → Frontend → n8n → NocoDB** (and back).
 Claude Code helps you build all three layers using the wrapper scripts
-and n8n-mcp for guidance.
+and the node database for guidance.
