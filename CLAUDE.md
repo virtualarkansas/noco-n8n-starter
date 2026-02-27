@@ -130,12 +130,16 @@ bash .claude/scripts/mcp.sh sql "SELECT node_type, display_name FROM nodes WHERE
 ```
 
 **WORKFLOW BUILDING PROCESS:**
-1. ALWAYS search templates first — there are 2,646+ available
-2. **Search for a built-in node** before using HTTP Request (see below)
-3. Use `mcp.sh get` and `mcp.sh props` for every node you configure
-4. NEVER guess parameter names — look them up in the properties JSON
-5. Check operations with `mcp.sh ops` before configuring a node
-6. Reference template examples with `mcp.sh templates` for patterns
+1. **Scan for existing credentials first** — run `bash .claude/scripts/n8n.sh list-credentials`
+   to see what credentials are already configured in n8n. Present the list to the
+   user and ask which credentials they want to use before building the workflow.
+   This avoids creating workflows that reference missing credentials.
+2. ALWAYS search templates first — there are 2,646+ available
+3. **Search for a built-in node** before using HTTP Request (see below)
+4. Use `mcp.sh get` and `mcp.sh props` for every node you configure
+5. NEVER guess parameter names — look them up in the properties JSON
+6. Check operations with `mcp.sh ops` before configuring a node
+7. Reference template examples with `mcp.sh templates` for patterns
 
 ### ⚠️ Prefer Built-in Nodes Over HTTP Request
 
@@ -263,6 +267,7 @@ bash .claude/scripts/n8n.sh update-workflow <id> '<workflow_json>'
 bash .claude/scripts/n8n.sh activate <id>
 bash .claude/scripts/n8n.sh deactivate <id>
 bash .claude/scripts/n8n.sh list-executions [workflowId]
+bash .claude/scripts/n8n.sh list-credentials          # ⚠️ ALWAYS run before building workflows
 ```
 
 ---
