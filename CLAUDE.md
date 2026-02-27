@@ -141,6 +141,50 @@ bash .claude/scripts/mcp.sh sql "SELECT node_type, display_name FROM nodes WHERE
 These teach correct expression syntax, workflow patterns, validation,
 and code node usage. They activate automatically when relevant.
 
+### Frontend Design Skill (in .claude/skills/frontend-design/)
+
+A comprehensive frontend design skill based on
+[Impeccable](https://impeccable.style) that activates when building
+HTML pages, dashboards, or any frontend interface. It provides:
+
+- **SKILL.md** — Core design principles, DO/DON'T guidelines, the "AI Slop Test"
+- **7 reference guides** — Typography, Color & Contrast, Spatial Design,
+  Motion Design, Interaction Design, Responsive Design, UX Writing
+
+The skill activates automatically when you ask Claude to build frontend
+pages. It ensures dashboards and HTML templates look intentionally
+designed — not like generic AI output.
+
+### Design Slash Commands (in .claude/commands/)
+
+17 design-focused slash commands for refining frontend work:
+
+| Command | What it does |
+|---------|-------------|
+| `/audit` | Comprehensive quality audit (a11y, performance, theming, responsive) |
+| `/critique` | UX design critique with actionable feedback |
+| `/polish` | Final detail pass — alignment, spacing, consistency |
+| `/simplify` | Strip unnecessary complexity |
+| `/bolder` | Amplify safe/boring designs |
+| `/quieter` | Tone down overly aggressive designs |
+| `/colorize` | Add strategic color to monochromatic interfaces |
+| `/animate` | Add purposeful animations and micro-interactions |
+| `/adapt` | Make designs work across screen sizes and devices |
+| `/harden` | Improve error handling, i18n, edge cases |
+| `/clarify` | Improve UX copy, labels, and error messages |
+| `/delight` | Add moments of joy and personality |
+| `/optimize` | Improve loading speed, rendering, performance |
+| `/normalize` | Align with design system standards |
+| `/extract` | Extract reusable components and design tokens |
+| `/onboard` | Design onboarding flows and empty states |
+| `/teach-impeccable` | One-time setup: gather design context for the project |
+
+**Recommended workflow for building dashboards:**
+1. Run `/teach-impeccable` once to set design context in CLAUDE.md
+2. Build the dashboard (the frontend-design skill activates automatically)
+3. Run `/audit` to identify issues
+4. Run `/polish` for the final detail pass
+
 ### NocoDB API (via wrapper script)
 
 ```bash
